@@ -1,0 +1,7 @@
+# Default configuration for the embodied LLM experiment
+
+cycle_time: 0.1  # seconds per tick
+drive_mode: semantic  # options: none, numeric, token, semantic
+memory_mode: full  # options: none, small, full
+world_mode: autonomous  # options: static, autonomous
+embedding_model: e5-small  # placeholder name for embedding model
