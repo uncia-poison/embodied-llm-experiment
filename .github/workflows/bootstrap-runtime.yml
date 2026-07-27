@@ -7,6 +7,12 @@ on:
     paths:
       - ".bootstrap/payload_*.b64"
       - ".github/workflows/bootstrap-runtime.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".bootstrap/payload_*.b64"
+      - ".github/workflows/bootstrap-runtime.yml"
   workflow_dispatch:
 
 permissions:
