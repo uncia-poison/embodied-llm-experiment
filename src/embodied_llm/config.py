@@ -7,10 +7,18 @@ from typing import Any, Literal
 import yaml
 
 DriveMode = Literal["none", "numeric", "token", "pattern", "semantic", "random"]
-ModelProvider = Literal["mock", "openai_compatible", "ollama", "replay"]
+ModelProvider = Literal[
+    "mock",
+    "openai_compatible",
+    "gemini",
+    "ollama",
+    "manual_relay",
+    "replay",
+]
 SensoriumMode = Literal["plain", "permuted", "masked"]
 CouplingMode = Literal["coupled", "disconnected", "random", "delayed"]
 Paradigm = Literal["single_body", "ownership_pair"]
+RelayVendor = Literal["generic", "deepseek", "gemini"]
 
 
 @dataclass(slots=True)
@@ -74,6 +82,8 @@ class ModelConfig:
     model: str = "mock-explorer"
     endpoint: str = "http://localhost:11434/v1/chat/completions"
     api_key_env: str = "OPENAI_API_KEY"
+    api_key_required: bool = False
+    json_mode: bool = False
     temperature: float = 0.7
     max_tokens: int = 450
     timeout_seconds: float = 120.0
@@ -81,6 +91,10 @@ class ModelConfig:
     retry_backoff_seconds: float = 1.0
     seed: int | None = None
     replay_path: str | None = None
+    relay_dir: str = "manual-sessions/default"
+    relay_vendor: RelayVendor = "generic"
+    relay_sentinel: str = ".submit"
+    relay_require_fresh_chat: bool = True
 
 
 @dataclass(slots=True)
@@ -208,6 +222,22 @@ class ExperimentConfig:
             raise ValueError("model.max_retries cannot be negative")
         if self.model.timeout_seconds <= 0:
             raise ValueError("model.timeout_seconds must be positive")
+        if self.model.provider not in {
+            "mock",
+            "openai_compatible",
+            "gemini",
+            "ollama",
+            "manual_relay",
+            "replay",
+        }:
+            raise ValueError(f"unsupported model provider: {self.model.provider}")
+        if self.model.relay_vendor not in {"generic", "deepseek", "gemini"}:
+            raise ValueError(f"unsupported relay vendor: {self.model.relay_vendor}")
+        if self.model.provider == "manual_relay":
+            if not self.model.relay_dir.strip():
+                raise ValueError("model.relay_dir is required for manual_relay")
+            if not self.model.relay_sentinel.strip():
+                raise ValueError("model.relay_sentinel cannot be empty")
         if self.paradigm not in {"single_body", "ownership_pair"}:
             raise ValueError(f"unsupported paradigm: {self.paradigm}")
         for block in self.coupling:
