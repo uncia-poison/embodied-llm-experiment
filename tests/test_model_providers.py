@@ -74,8 +74,9 @@ def test_openai_compatible_json_mode_adds_response_format(monkeypatch):
             json={"choices": [{"message": {"content": '{"utterance":"ok"}'}}]},
         )
 
+    headers = dict(model.client.headers)
     model.client.close()
-    model.client = httpx.Client(transport=httpx.MockTransport(handler))
+    model.client = httpx.Client(transport=httpx.MockTransport(handler), headers=headers)
     assert model.generate([{"role": "user", "content": "Return JSON"}]) == '{"utterance":"ok"}'
     assert captured["payload"]["response_format"] == {"type": "json_object"}
     assert captured["authorization"] == "Bearer test-key"
@@ -106,8 +107,9 @@ def test_gemini_adapter_serializes_roles_and_json_mode(monkeypatch):
             },
         )
 
+    headers = dict(model.client.headers)
     model.client.close()
-    model.client = httpx.Client(transport=httpx.MockTransport(handler))
+    model.client = httpx.Client(transport=httpx.MockTransport(handler), headers=headers)
     messages = [
         {"role": "system", "content": "System instruction"},
         {"role": "user", "content": "First state"},
