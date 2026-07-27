@@ -76,8 +76,10 @@ make gemini-api
 ```
 
 DeepSeek uses the OpenAI-compatible chat-completions adapter with JSON mode. Gemini uses the native
-`generateContent` request shape with JSON MIME output. Model names and endpoints live in YAML rather
-than being hard-coded into the runtime.
+`generateContent` request shape with JSON MIME output. At the v0.5 profile revision, the example YAML
+model names are `deepseek-v4-flash` and `gemini-3.6-flash`. Model names and endpoints live in YAML
+rather than being hard-coded into the runtime, so they can follow the providers' changing catalogues.
+Run `doctor` and verify the current official catalogue before a paid run.
 
 ## Live-model preregistered pilot
 
