@@ -1,7 +1,8 @@
 name: tests
 
 on:
-  workflow_dispatch:
+  push:
+  pull_request:
 
 jobs:
   test:
@@ -20,5 +21,7 @@ jobs:
       - run: pytest
       - run: python -m compileall -q src
       - run: embodied-llm run --config configs/ci.yaml
+      - run: embodied-llm doctor --config configs/manual/deepseek-web.yaml
+      - run: embodied-llm doctor --config configs/manual/gemini-web.yaml
       - run: embodied-llm suite --suite configs/suites/mock-battery.yaml --plan
       - run: embodied-llm suite --suite configs/suites/mock-battery.yaml
