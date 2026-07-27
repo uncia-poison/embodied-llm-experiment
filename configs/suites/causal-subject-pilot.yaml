@@ -2,6 +2,8 @@ name: causal-subject-pilot-v1
 seeds: [101]
 replicates: 1
 output_dir: suite-runs
+resume: true
+continue_on_error: true
 conditions:
   - name: disconnected
     config_path: u0-disconnected.yaml
