@@ -2,6 +2,8 @@ name: causal-subject-battery-v1
 seeds: [101, 202, 303, 404, 505]
 replicates: 3
 output_dir: suite-runs
+resume: true
+continue_on_error: true
 conditions:
   - name: disconnected
     config_path: u0-disconnected.yaml
