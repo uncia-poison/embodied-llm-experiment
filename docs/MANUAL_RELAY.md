@@ -88,9 +88,10 @@ embodied-llm run --config configs/providers/gemini-api.yaml
 ```
 
 The DeepSeek profile uses the OpenAI-compatible chat-completions transport with JSON mode. The Gemini
-profile uses Google's native `generateContent` request shape and JSON MIME mode. Provider model names
-and endpoints are configuration, not assumptions baked into the runtime; update the YAML when a
-provider changes its catalogue.
+profile uses Google's native `generateContent` request shape and JSON MIME mode. At the v0.5 profile
+revision, the example YAML model names are `deepseek-v4-flash` and `gemini-3.6-flash`. They remain
+ordinary configuration values because hosted catalogues change independently of this repository.
+Always run `doctor` and confirm the provider's current official catalogue before a paid run.
 
 ## Interpretation boundary
 
