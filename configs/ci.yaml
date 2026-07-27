@@ -1,0 +1,8 @@
+name: ci-smoke
+seed: 1
+ticks: 5
+output_dir: runs
+model:
+  provider: mock
+probes:
+  enabled: false

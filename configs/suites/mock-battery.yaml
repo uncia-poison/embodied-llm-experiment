@@ -1,0 +1,8 @@
+name: mock-validation-battery
+seeds: [11, 22]
+output_dir: suite-runs
+conditions:
+  - name: single
+    config_path: ../mvp.yaml
+  - name: ownership
+    config_path: ownership-pair.yaml

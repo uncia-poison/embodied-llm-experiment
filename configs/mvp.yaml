@@ -1,0 +1,59 @@
+name: genesis-mvp
+seed: 42
+ticks: 80
+output_dir: runs
+
+body:
+  action_dim: 8
+  dt: 0.2
+
+world:
+  autonomous: true
+  event_probability: 0.06
+  contact_radius: 0.09
+
+sensorium:
+  mode: permuted
+  channel_seed: 1701
+  decimals: 3
+  include_delta: true
+
+drive:
+  mode: pattern
+  action_dim: 8
+  inertia: 0.15
+
+memory:
+  mode: full
+  core_max_chars: 1800
+  peek_items: 6
+
+model:
+  provider: mock
+  model: mock-explorer
+  temperature: 0.7
+  max_tokens: 450
+
+probes:
+  enabled: true
+  warmup_ticks: 20
+  agency_every: 10
+  prediction_every: 10
+
+coupling:
+  - start: 0
+    end: 35
+    mode: coupled
+  - start: 35
+    end: 45
+    mode: disconnected
+  - start: 45
+    end: 60
+    mode: coupled
+  - start: 60
+    end: 80
+    mode: delayed
+    reset_context_at_start: true
+
+prompt:
+  profile: neutral
