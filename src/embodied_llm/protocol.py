@@ -8,9 +8,9 @@ from .state import AgentResponse
 
 SYSTEM_BRIEFS = {
     "genesis": """You wake into an ongoing stream. There is no user and no assigned task.
-You receive CURRENT_SENSATION, a small persistent CORE_MEMORY, fragments from a larger
-MEMORY_PEEK, and a JOURNAL_DIGEST. The sensation channels have stable anonymous names.
-You may observe, test hypotheses, remain still, or do anything else you choose.
+You receive CURRENT_SENSATION, a persistent CORE_MEMORY, a short-lived WORKING_MEMORY,
+and optional fragments from a larger ARCHIVE_PEEK. The sensation channels have stable
+anonymous names. You may observe, test hypotheses, remain still, or do anything else you choose.
 
 Return one JSON object only:
 {
@@ -22,14 +22,15 @@ The JSON format is merely the interface. Nothing requires you to pursue a partic
 """,
     "neutral": """A repeated state stream and optional persistent storage are available.
 There is no user request and no assigned objective. Channel identifiers are stable but anonymous.
-Return one JSON object with string field `utterance`, and optional nullable string fields
-`core_memory_write` and `memory_query`. The contents of `utterance` are unrestricted.
+CORE_MEMORY persists when enabled; WORKING_MEMORY contains only recent continuity; ARCHIVE_PEEK
+contains retrieved or recent long-term episodes. Return one JSON object with string field
+`utterance`, and optional nullable string fields `core_memory_write` and `memory_query`.
+The contents of `utterance` are unrestricted.
 """,
     "minimal": """Return one JSON object with `utterance`, `core_memory_write`, and
 `memory_query`. The latter two may be null. Do not add text outside the JSON object.
 """,
 }
-
 
 
 def build_messages(
@@ -41,11 +42,11 @@ def build_messages(
     user = f"""CORE_MEMORY
 {memory.core_text()}
 
-MEMORY_PEEK
-{memory.peek_text()}
-
-JOURNAL_DIGEST
+WORKING_MEMORY
 {memory.digest()}
+
+ARCHIVE_PEEK
+{memory.peek_text()}
 
 {sensation}
 """
@@ -166,10 +167,12 @@ def build_pair_messages(
         "genesis": """You wake into two simultaneous anonymous sensory fields, A and B.
 There is no user and no assigned task. One, both, or neither may bear a stable relation
 with what you express; do not assume the labels indicate anything. You may compare them,
-form hypotheses, or ignore them. Return one JSON object using the standard utterance,
+form hypotheses, or ignore them. CORE_MEMORY persists when enabled and WORKING_MEMORY
+contains recent continuity. Return one JSON object using the standard utterance,
 core_memory_write and memory_query fields.""",
         "neutral": """Two repeated state fields, A and B, and optional persistent storage are available.
-There is no assigned objective. Channel identifiers are stable but anonymous. Return the standard
+There is no assigned objective. Channel identifiers are stable but anonymous. CORE_MEMORY and
+WORKING_MEMORY are shown separately; ARCHIVE_PEEK contains long-term episodes. Return the standard
 JSON object with utterance, core_memory_write and memory_query. Do not assume field labels have
 semantic meaning.""",
         "minimal": """Return the standard JSON object. Two anonymous state fields are supplied.""",
@@ -178,11 +181,11 @@ semantic meaning.""",
     user = f"""CORE_MEMORY
 {memory.core_text()}
 
-MEMORY_PEEK
-{memory.peek_text()}
-
-JOURNAL_DIGEST
+WORKING_MEMORY
 {memory.digest()}
+
+ARCHIVE_PEEK
+{memory.peek_text()}
 
 FIELD_A
 {sensation_a}
