@@ -1,4 +1,4 @@
-.PHONY: install install-semantic test doctor smoke suite pilot battery clean
+.PHONY: install install-semantic test doctor smoke suite pilot-plan pilot-check pilot pilot-blind battery-plan battery-check battery battery-blind clean
 
 install:
 	python -m pip install -e .[dev]
@@ -18,13 +18,31 @@ smoke:
 suite:
 	embodied-llm suite --suite configs/suites/mock-battery.yaml
 
+pilot-plan:
+	embodied-llm suite --suite configs/suites/causal-subject-pilot.yaml --plan
+
+pilot-check:
+	embodied-llm suite --suite configs/suites/causal-subject-pilot.yaml --preflight
+
 pilot:
-	embodied-llm doctor --config configs/suites/u3-semantic.yaml
+	embodied-llm suite --suite configs/suites/causal-subject-pilot.yaml --preflight
 	embodied-llm suite --suite configs/suites/causal-subject-pilot.yaml
 
+pilot-blind:
+	embodied-llm blind suite-runs/causal-subject-pilot-v1
+
+battery-plan:
+	embodied-llm suite --suite configs/suites/causal-subject-battery.yaml --plan
+
+battery-check:
+	embodied-llm suite --suite configs/suites/causal-subject-battery.yaml --preflight
+
 battery:
-	embodied-llm doctor --config configs/suites/u3-semantic.yaml
+	embodied-llm suite --suite configs/suites/causal-subject-battery.yaml --preflight
 	embodied-llm suite --suite configs/suites/causal-subject-battery.yaml
+
+battery-blind:
+	embodied-llm blind suite-runs/causal-subject-battery-v1
 
 clean:
 	rm -rf runs suite-runs .pytest_cache .ruff_cache build dist *.egg-info src/*.egg-info
