@@ -91,3 +91,35 @@ labels where practical.
 No single self-report, emotional statement or use of first-person pronouns counts as a positive
 result. A claim of a causal subject-model requires convergent performance on prospective prediction,
 agency calibration and ownership tracking, with degradation in matched disconnection controls.
+
+## 7. Runtime-enforced anti-confound controls
+
+Freeze and record the following before looking at model outputs:
+
+- whether ownership presentation labels are randomized (`randomize_field_labels` should normally
+  be true);
+- simulator seeds and decoding replicate count;
+- provider-supported model seed for each replicate;
+- external-event schedule, shared across counterfactual worlds and ownership fields;
+- exact signed-permutation seed used by the yoked random control;
+- whether memory retrieval exposes expression only or expression plus ensuing sensation (the
+  preregistered primary condition uses both);
+- intervention segment boundaries and all remap seeds.
+
+A full primary battery uses at least five simulator seeds and three paired decoding replicates.
+Pilot runs may use fewer, but pilot outputs must not be used to alter primary endpoints or favorable
+condition boundaries.
+
+## 8. Required negative controls for introspective claims
+
+Behavioral causal ownership is not equivalent to neural introspection. Any later white-box claim
+must compare the model's report against:
+
+1. an input-only predictor receiving the same prompt;
+2. a relabeled hidden-state target whose semantics cannot be guessed from the task;
+3. matched input perturbations that are externally visible but do not alter the targeted internal
+   representation;
+4. activation interventions with predeclared direction and dose.
+
+If the model does not beat the input-only control, describe the result as inference from observable
+cues, not privileged introspective access.

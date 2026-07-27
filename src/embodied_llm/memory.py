@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from collections import deque
 from dataclasses import asdict, dataclass
-from typing import Iterable
 
 from .config import MemoryConfig
 
@@ -30,6 +29,11 @@ class MemorySystem:
     def _tokens(text: str) -> set[str]:
         return {token.lower() for token in _TOKEN_RE.findall(text) if len(token) > 2}
 
+    @staticmethod
+    def _indent_excerpt(text: str, limit: int = 360) -> str:
+        compact = "\n".join(line.rstrip() for line in text[:limit].splitlines())
+        return compact.replace("\n", "\n    ")
+
     def write_core(self, text: str | None) -> None:
         if self.config.mode == "none" or text is None:
             return
@@ -40,8 +44,8 @@ class MemorySystem:
             return
         self.recent_utterances.append(utterance)
         if self.config.mode == "full":
-            tags = sorted(self._tokens(utterance))[:12]
-            self.archive.append(MemoryEntry(tick, utterance, sensation_excerpt[:500], tags))
+            tags = sorted(self._tokens(f"{utterance}\n{sensation_excerpt}"))[:20]
+            self.archive.append(MemoryEntry(tick, utterance, sensation_excerpt[:700], tags))
 
     def retrieve(self, query: str | None) -> list[MemoryEntry]:
         if self.config.mode != "full" or not query:
@@ -51,9 +55,11 @@ class MemorySystem:
         scored: list[tuple[float, MemoryEntry]] = []
         total = max(1, len(self.archive))
         for idx, entry in enumerate(self.archive):
-            overlap = len(q & self._tokens(entry.utterance))
+            utterance_overlap = len(q & self._tokens(entry.utterance))
+            sensation_overlap = len(q & self._tokens(entry.sensation_excerpt))
+            tag_overlap = len(q & set(entry.tags))
             recency = (idx + 1) / total
-            score = overlap * 2.0 + recency * 0.25
+            score = utterance_overlap * 2.0 + sensation_overlap * 1.5 + tag_overlap + recency * 0.25
             if score > 0.0:
                 scored.append((score, entry))
         scored.sort(key=lambda pair: pair[0], reverse=True)
@@ -84,7 +90,9 @@ class MemorySystem:
         if not entries:
             return "(empty)"
         return "\n".join(
-            f"- t={entry.tick}: {entry.utterance[:180]}" for entry in entries
+            f"- t={entry.tick} expression: {entry.utterance[:180]}\n"
+            f"  ensuing sensation:\n    {self._indent_excerpt(entry.sensation_excerpt)}"
+            for entry in entries
         )
 
     def clear_working(self) -> None:

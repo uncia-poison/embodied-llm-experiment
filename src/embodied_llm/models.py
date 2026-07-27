@@ -96,6 +96,8 @@ class OpenAICompatibleModel:
             "temperature": self.config.temperature if temperature is None else temperature,
             "max_tokens": self.config.max_tokens if max_tokens is None else max_tokens,
         }
+        if self.config.seed is not None:
+            payload["seed"] = int(self.config.seed)
         data = _post_json_with_retry(
             self.client,
             self.config.endpoint,
@@ -128,6 +130,8 @@ class OllamaModel:
                 "num_predict": self.config.max_tokens if max_tokens is None else max_tokens,
             },
         }
+        if self.config.seed is not None:
+            payload["options"]["seed"] = int(self.config.seed)
         data = _post_json_with_retry(
             self.client,
             self.endpoint,

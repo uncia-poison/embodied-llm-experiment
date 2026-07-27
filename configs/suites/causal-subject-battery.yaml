@@ -1,0 +1,17 @@
+name: causal-subject-battery-v1
+seeds: [101, 202, 303, 404, 505]
+replicates: 3
+output_dir: suite-runs
+conditions:
+  - name: disconnected
+    config_path: u0-disconnected.yaml
+  - name: yoked-random
+    config_path: u0-yoked-control.yaml
+  - name: semantic-full-memory
+    config_path: u3-semantic.yaml
+  - name: semantic-no-memory
+    config_path: u3-semantic-no-memory.yaml
+  - name: pattern-positive
+    config_path: u4-pattern-positive.yaml
+  - name: ownership-pair
+    config_path: ownership-pair-semantic.yaml

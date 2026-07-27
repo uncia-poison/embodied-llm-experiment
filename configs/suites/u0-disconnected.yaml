@@ -1,4 +1,4 @@
-name: semantic-proposal-yoked-random-control
+name: semantic-proposal-disconnected
 seed: 2026
 ticks: 240
 output_dir: runs
@@ -37,6 +37,6 @@ probes:
 coupling:
   - start: 0
     end: 240
-    mode: random
+    mode: disconnected
 prompt:
   profile: neutral

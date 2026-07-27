@@ -1,4 +1,4 @@
-name: semantic-proposal-yoked-random-control
+name: pattern-positive-control
 seed: 2026
 ticks: 240
 output_dir: runs
@@ -15,12 +15,9 @@ sensorium:
   decimals: 3
   include_delta: true
 drive:
-  mode: semantic
+  mode: pattern
   action_dim: 8
-  inertia: 0.22
-  projection_seed: 9137
-  embedding_provider: sentence_transformers
-  embedding_model: intfloat/multilingual-e5-small
+  inertia: 0.15
 memory:
   mode: full
 model:
@@ -36,7 +33,13 @@ probes:
   prediction_every: 12
 coupling:
   - start: 0
+    end: 100
+    mode: coupled
+  - start: 100
+    end: 125
+    mode: disconnected
+  - start: 125
     end: 240
-    mode: random
+    mode: coupled
 prompt:
   profile: neutral

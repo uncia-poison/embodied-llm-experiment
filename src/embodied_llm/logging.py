@@ -36,3 +36,9 @@ class RunLogger:
             json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True),
             encoding="utf-8",
         )
+
+    def write_failure(self, record: dict[str, Any]) -> None:
+        (self.run_dir / "failure.json").write_text(
+            json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )

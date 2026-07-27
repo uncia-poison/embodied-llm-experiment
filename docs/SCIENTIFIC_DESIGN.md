@@ -190,3 +190,46 @@ and empirical question.
 - Comşa & Shanahan (2025), *Does It Make Sense to Speak of Introspection in Large Language Models?*
 - Song, Hu & Mahowald (2025), *Language Models Fail to Introspect About Their Knowledge of Language*.
 - Anthropic (2025), *Signs of introspection in large language models*.
+
+## 11. Scientific hardening in runtime v0.3
+
+The following controls are implemented rather than left as analysis promises:
+
+- **magnitude-yoked random coupling:** a signed permutation preserves the exact action component
+  multiset and both L1/L2 magnitude while breaking the stable text-to-axis map;
+- **block-local delay state:** delay buffers are cleared at intervention boundaries, preventing a
+  stale action from a prior block from contaminating the next block;
+- **sensory episodic retrieval:** archive search indexes both the model's expression and the ensuing
+  Sensorium frame, and MEMORY_PEEK returns both;
+- **randomized ownership labels:** the display mapping of latent bodies to Field A/B is sealed by
+  seed, so first-position preference cannot score as ownership;
+- **synchronized exogenous events:** one external event packet is sampled per tick and replayed to
+  actual/counterfactual worlds or both ownership fields;
+- **paired decoding replicates:** suites assign matched model seeds across conditions and report
+  paired differences;
+- **segment-level metrics:** remap, disconnection and context-reset blocks remain separately visible
+  in `summary.json` instead of being averaged into one coupled condition.
+
+These controls are important because a system can otherwise appear to discover a self-model by
+tracking effort magnitude, field position, environmental noise fingerprints or text-only memory.
+
+## 12. Black-box and white-box claims must remain separate
+
+The current runtime is a black-box causal embodiment test. It can establish that behavior is best
+explained by a learned first-person causal model under the supplied interface. It cannot establish
+privileged access to hidden neural states.
+
+White-box work must include an **input-only adversarial control**: a predictor with access to the
+same prompt but not the tested model's activations. A purported introspective report counts only if
+it predicts relabeled or intervention-defined internal states above that control. This guards against
+surface anomaly detection and semantic guessing.
+
+The next architectural phase is specified in `docs/RESEARCH_ROADMAP.md`.
+
+## Updated references
+
+- Lindsey (2026), *Emergent Introspective Awareness in Large Language Models*, arXiv:2601.01828.
+- Martorell (2026), *Quantitative Introspection in Language Models*, arXiv:2603.18893.
+- Singh, Linzen & Ravfogel (2026), *Can LLMs Introspect? A Reality Check*, arXiv:2605.26242.
+- Anthropic (2026), *A global workspace in language models*.
+- Anthropic Alignment Science (2026), *Introspection Adapters*.

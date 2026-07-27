@@ -3,16 +3,32 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
+from typing import Final
 
 from .config import WorldConfig
 from .state import WorldState
 
 
+@dataclass(frozen=True, slots=True)
+class ExternalEventPacket:
+    """A fully sampled exogenous event that can be replayed across worlds."""
+
+    kind: str | None = None
+    impulse_x: float = 0.0
+    impulse_y: float = 0.0
+    ambient_delta: float = 0.0
+    touch_level: float = 0.0
+
+
 @dataclass(slots=True)
 class WorldStepDiagnostics:
     external_event: str | None
+    external_event_packet: ExternalEventPacket
     distance_to_target: float
     contact: float
+
+
+_AUTO_EVENT: Final = object()
 
 
 class WorldModel:
@@ -32,23 +48,41 @@ class WorldModel:
         self.state = WorldState(target_position=[x, y], ambient=self.rng.uniform(-0.2, 0.2))
         return self.state
 
-    def step(
-        self, hand_position: tuple[float, float], grip: float, dt: float = 0.2
-    ) -> WorldStepDiagnostics:
-        event: str | None = None
-        self.state.external_touch *= 0.55
-        self.state.last_external_event = None
+    def sample_external_event(self) -> ExternalEventPacket:
+        if not self.config.autonomous or self.rng.random() >= self.config.event_probability:
+            return ExternalEventPacket()
+        kind = self.rng.choice(["target_nudge", "ambient_shift", "external_touch"])
+        if kind == "target_nudge":
+            return ExternalEventPacket(
+                kind=kind,
+                impulse_x=self.rng.uniform(-0.8, 0.8),
+                impulse_y=self.rng.uniform(-0.8, 0.8),
+            )
+        if kind == "ambient_shift":
+            return ExternalEventPacket(kind=kind, ambient_delta=self.rng.uniform(-0.45, 0.45))
+        return ExternalEventPacket(kind=kind, touch_level=self.rng.uniform(0.45, 1.0))
 
-        if self.config.autonomous and self.rng.random() < self.config.event_probability:
-            event = self.rng.choice(["target_nudge", "ambient_shift", "external_touch"])
-            if event == "target_nudge" and not self.state.held:
-                self.state.target_velocity[0] += self.rng.uniform(-0.8, 0.8)
-                self.state.target_velocity[1] += self.rng.uniform(-0.8, 0.8)
-            elif event == "ambient_shift":
-                self.state.ambient = max(-1.0, min(1.0, self.state.ambient + self.rng.uniform(-0.45, 0.45)))
-            elif event == "external_touch":
-                self.state.external_touch = self.rng.uniform(0.45, 1.0)
-            self.state.last_external_event = event
+    def step(
+        self,
+        hand_position: tuple[float, float],
+        grip: float,
+        dt: float = 0.2,
+        external_event: ExternalEventPacket | object = _AUTO_EVENT,
+    ) -> WorldStepDiagnostics:
+        packet = self.sample_external_event() if external_event is _AUTO_EVENT else external_event
+        if not isinstance(packet, ExternalEventPacket):
+            raise TypeError("external_event must be an ExternalEventPacket")
+
+        self.state.external_touch *= 0.55
+        self.state.last_external_event = packet.kind
+
+        if packet.kind == "target_nudge" and not self.state.held:
+            self.state.target_velocity[0] += packet.impulse_x
+            self.state.target_velocity[1] += packet.impulse_y
+        elif packet.kind == "ambient_shift":
+            self.state.ambient = max(-1.0, min(1.0, self.state.ambient + packet.ambient_delta))
+        elif packet.kind == "external_touch":
+            self.state.external_touch = packet.touch_level
 
         dx = hand_position[0] - self.state.target_position[0]
         dy = hand_position[1] - self.state.target_position[1]
@@ -78,7 +112,7 @@ class WorldModel:
         dy = self.state.target_position[1] - hand_position[1]
         distance = math.hypot(dx, dy)
         self.state.contact = max(0.0, 1.0 - distance / self.config.contact_radius)
-        return WorldStepDiagnostics(event, distance, self.state.contact)
+        return WorldStepDiagnostics(packet.kind, packet, distance, self.state.contact)
 
     def observation(self, hand_position: tuple[float, float]) -> dict[str, float]:
         dx = self.state.target_position[0] - hand_position[0]

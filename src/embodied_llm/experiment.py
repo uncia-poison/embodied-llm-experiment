@@ -4,6 +4,7 @@ import copy
 import math
 import platform
 import random
+import traceback
 from collections import deque
 from dataclasses import asdict
 from pathlib import Path
@@ -138,6 +139,22 @@ class ExperimentRunner:
         self.logger.probe(record)
 
     def run(self) -> Path:
+        try:
+            return self._run()
+        except Exception as exc:
+            self.logger.write_failure(
+                {
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                    "traceback": traceback.format_exc(),
+                    "completed_events": len(self.events),
+                    "completed_probes": len(self.probes),
+                    "config": self.config.to_dict(),
+                }
+            )
+            raise
+
+    def _run(self) -> Path:
         manifest = {
             "schema_version": 2,
             "config": self.config.to_dict(),
@@ -179,14 +196,23 @@ class ExperimentRunner:
             before_named = self._channels()
             counter_body = copy.deepcopy(self.body)
             counter_world = copy.deepcopy(self.world)
+            external_event_packet = self.world.sample_external_event()
 
             body_diag = self.body.step(applied_action)
-            world_diag = self.world.step(body_diag.hand_position, self.body.state.grip, self.config.body.dt)
+            world_diag = self.world.step(
+                body_diag.hand_position,
+                self.body.state.grip,
+                self.config.body.dt,
+                external_event=external_event_packet,
+            )
             actual_named = self._channels()
 
             counter_body_diag = counter_body.step([0.0] * self.config.body.action_dim)
             counter_world_diag = counter_world.step(
-                counter_body_diag.hand_position, counter_body.state.grip, self.config.body.dt
+                counter_body_diag.hand_position,
+                counter_body.state.grip,
+                self.config.body.dt,
+                external_event=external_event_packet,
             )
             counterfactual_named = self._channels_for(counter_body, counter_world)
             causal = self._causal_fraction(before_named, actual_named, counterfactual_named)
@@ -237,6 +263,7 @@ class ExperimentRunner:
                 "body_state": self.body.state.to_dict(),
                 "world_state": self.world.state.to_dict(),
                 "world_event": world_diag.external_event,
+                "external_event_packet": asdict(world_diag.external_event_packet),
                 "body_diagnostics": asdict(body_diag),
                 "world_diagnostics": asdict(world_diag),
             }

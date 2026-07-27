@@ -9,6 +9,7 @@ from .experiment import ExperimentRunner
 from .ownership import OwnershipPairRunner
 from .suite import SuiteRunner
 from .metrics import summarize
+from .preflight import run_preflight
 
 
 def _load_jsonl(path: Path) -> list[dict]:
@@ -39,6 +40,12 @@ def suite_command(suite_path: str) -> int:
     return 0
 
 
+def doctor_command(config_path: str) -> int:
+    report = run_preflight(ExperimentConfig.from_yaml(config_path))
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report["ok"] else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="embodied-llm")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -48,11 +55,15 @@ def main() -> int:
     suite_parser.add_argument("--suite", required=True)
     analyze_parser = sub.add_parser("analyze", help="recompute summary metrics")
     analyze_parser.add_argument("run_dir")
+    doctor_parser = sub.add_parser("doctor", help="validate dependencies and endpoints")
+    doctor_parser.add_argument("--config", required=True)
     args = parser.parse_args()
     if args.command == "run":
         return run_command(args.config)
     if args.command == "suite":
         return suite_command(args.suite)
+    if args.command == "doctor":
+        return doctor_command(args.config)
     return analyze_command(args.run_dir)
 
 

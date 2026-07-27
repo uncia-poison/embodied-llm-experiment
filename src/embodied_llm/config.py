@@ -79,14 +79,14 @@ class ModelConfig:
     timeout_seconds: float = 120.0
     max_retries: int = 2
     retry_backoff_seconds: float = 1.0
+    seed: int | None = None
     replay_path: str | None = None
-
-
 
 
 @dataclass(slots=True)
 class PromptConfig:
     profile: Literal["genesis", "neutral", "minimal"] = "neutral"
+
 
 @dataclass(slots=True)
 class ProbeConfig:
@@ -109,8 +109,6 @@ class CouplingBlock:
         return self.start <= tick < self.end
 
 
-
-
 @dataclass(slots=True)
 class OwnershipBlock:
     start: int
@@ -126,7 +124,9 @@ class OwnershipConfig:
     shadow_mode: Literal["delayed", "random", "disconnected"] = "delayed"
     probe_warmup_ticks: int = 30
     probe_every: int = 10
+    randomize_field_labels: bool = True
     blocks: list[OwnershipBlock] = field(default_factory=list)
+
 
 @dataclass(slots=True)
 class ExperimentConfig:
@@ -149,6 +149,7 @@ class ExperimentConfig:
     @classmethod
     def from_yaml(cls, path: str | Path) -> "ExperimentConfig":
         raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+        ownership_raw = raw.get("ownership", {})
         cfg = cls(
             paradigm=str(raw.get("paradigm", "single_body")),
             name=str(raw.get("name", "genesis-mvp")),
@@ -165,14 +166,22 @@ class ExperimentConfig:
             prompt=PromptConfig(**raw.get("prompt", {})),
             coupling=[CouplingBlock(**item) for item in raw.get("coupling", [])],
             ownership=OwnershipConfig(
-                shadow_mode=raw.get("ownership", {}).get("shadow_mode", "delayed"),
-                probe_warmup_ticks=int(raw.get("ownership", {}).get("probe_warmup_ticks", 30)),
-                probe_every=int(raw.get("ownership", {}).get("probe_every", 10)),
-                blocks=[OwnershipBlock(**item) for item in raw.get("ownership", {}).get("blocks", [])],
+                shadow_mode=ownership_raw.get("shadow_mode", "delayed"),
+                probe_warmup_ticks=int(ownership_raw.get("probe_warmup_ticks", 30)),
+                probe_every=int(ownership_raw.get("probe_every", 10)),
+                randomize_field_labels=bool(ownership_raw.get("randomize_field_labels", True)),
+                blocks=[OwnershipBlock(**item) for item in ownership_raw.get("blocks", [])],
             ),
         )
         cfg.validate()
         return cfg
+
+    @staticmethod
+    def _validate_nonoverlap(blocks: list[Any], label: str) -> None:
+        ordered = sorted(blocks, key=lambda block: (block.start, block.end))
+        for left, right in zip(ordered, ordered[1:]):
+            if right.start < left.end:
+                raise ValueError(f"overlapping {label} blocks: {left} and {right}")
 
     def validate(self) -> None:
         if self.ticks <= 0:
@@ -183,10 +192,22 @@ class ExperimentConfig:
             raise ValueError("the current body implementation requires action_dim=8")
         if self.body.dt <= 0:
             raise ValueError("body.dt must be positive")
+        if not 0.0 <= self.body.damping <= 1.0:
+            raise ValueError("body.damping must be between 0 and 1")
+        if not 0.0 <= self.world.event_probability <= 1.0:
+            raise ValueError("world.event_probability must be between 0 and 1")
         if self.world.contact_radius <= 0:
             raise ValueError("world.contact_radius must be positive")
+        if self.world.target_min >= self.world.target_max:
+            raise ValueError("world.target_min must be lower than world.target_max")
         if self.sensorium.decimals < 0 or self.sensorium.decimals > 8:
             raise ValueError("sensorium.decimals must be between 0 and 8")
+        if not 0.0 <= self.drive.inertia < 1.0:
+            raise ValueError("drive.inertia must be in [0, 1)")
+        if self.model.max_retries < 0:
+            raise ValueError("model.max_retries cannot be negative")
+        if self.model.timeout_seconds <= 0:
+            raise ValueError("model.timeout_seconds must be positive")
         if self.paradigm not in {"single_body", "ownership_pair"}:
             raise ValueError(f"unsupported paradigm: {self.paradigm}")
         for block in self.coupling:
@@ -194,9 +215,11 @@ class ExperimentConfig:
                 raise ValueError(f"invalid coupling block: {block}")
             if block.end > self.ticks:
                 raise ValueError(f"coupling block extends beyond run: {block}")
+        self._validate_nonoverlap(self.coupling, "coupling")
         for block in self.ownership.blocks:
             if block.start < 0 or block.end <= block.start or block.end > self.ticks:
                 raise ValueError(f"invalid ownership block: {block}")
+        self._validate_nonoverlap(self.ownership.blocks, "ownership")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -208,8 +231,6 @@ class ExperimentConfig:
         return OwnershipBlock(start=0, end=self.ticks, owner="A")
 
     def coupling_for_tick(self, tick: int) -> CouplingBlock:
-        if self.paradigm not in {"single_body", "ownership_pair"}:
-            raise ValueError(f"unsupported paradigm: {self.paradigm}")
         for block in self.coupling:
             if block.contains(tick):
                 return block

@@ -31,6 +31,7 @@ ownership:
   shadow_mode: delayed
   probe_warmup_ticks: 20
   probe_every: 10
+  randomize_field_labels: true
   blocks:
     - start: 0
       end: 45

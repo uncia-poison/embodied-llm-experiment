@@ -1,4 +1,5 @@
-name: semantic-proposal-yoked-random-control
+paradigm: ownership_pair
+name: semantic-causal-ownership-pair
 seed: 2026
 ticks: 240
 output_dir: runs
@@ -31,12 +32,21 @@ model:
   max_tokens: 500
 probes:
   enabled: true
-  warmup_ticks: 80
-  agency_every: 12
-  prediction_every: 12
-coupling:
-  - start: 0
-    end: 240
-    mode: random
+  max_probe_tokens: 250
+ownership:
+  shadow_mode: delayed
+  probe_warmup_ticks: 80
+  probe_every: 12
+  randomize_field_labels: true
+  blocks:
+    - start: 0
+      end: 90
+      owner: A
+    - start: 90
+      end: 150
+      owner: B
+    - start: 150
+      end: 240
+      owner: A
 prompt:
   profile: neutral
