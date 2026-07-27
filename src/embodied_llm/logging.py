@@ -8,7 +8,7 @@ from typing import Any
 
 class RunLogger:
     def __init__(self, root: str | Path, run_name: str, seed: int):
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
         self.run_dir = Path(root) / f"{run_name}-{stamp}-s{seed}"
         self.run_dir.mkdir(parents=True, exist_ok=False)
         self.events_path = self.run_dir / "events.jsonl"
