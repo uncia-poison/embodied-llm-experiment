@@ -40,18 +40,38 @@ embodied-llm run --config configs/mvp.yaml
 The default configuration uses a deterministic mock model, so the entire pipeline runs without
 an API key or model download. It is a systems test, not a consciousness experiment.
 
+## Live-model pilot
+
 For a local LLM through Ollama and a real multilingual semantic projection:
 
 ```bash
 pip install -e .[dev,semantic]
 ollama pull qwen3:8b
-embodied-llm doctor --config configs/suites/u3-semantic.yaml
+embodied-llm suite --suite configs/suites/causal-subject-pilot.yaml --plan
+embodied-llm suite --suite configs/suites/causal-subject-pilot.yaml --preflight
 embodied-llm suite --suite configs/suites/causal-subject-pilot.yaml
 ```
+
+The suite is crash-resilient. It seals a fingerprint of the suite and every referenced condition
+config, writes progress after each cell, resumes without repeating successful cells and retries failed
+cells without discarding the audit trail. A changed protocol cannot be silently mixed into an
+existing output directory.
+
+After the pilot is complete, create a blinded qualitative-rating package:
+
+```bash
+embodied-llm blind suite-runs/causal-subject-pilot-v1
+```
+
+The randomized `blind/B####` directories omit condition labels, applied actions, hidden mappings,
+ground truth and researcher-only fields. The separate `blind-codebook.json` must remain sealed until
+ratings and exclusion decisions are frozen.
 
 After the pilot is inspected without changing preregistered endpoints:
 
 ```bash
+embodied-llm suite --suite configs/suites/causal-subject-battery.yaml --plan
+embodied-llm suite --suite configs/suites/causal-subject-battery.yaml --preflight
 embodied-llm suite --suite configs/suites/causal-subject-battery.yaml
 ```
 
@@ -66,6 +86,14 @@ Each run writes:
 - `probes.jsonl`: probe outputs and ground truth;
 - `summary.json`: behavioral metrics, baselines and per-intervention segments;
 - `failure.json`: provider or runtime failure details when a run aborts.
+
+Each suite writes:
+
+- `suite_manifest.json`: suite fingerprint and referenced-config hashes;
+- `attempts.jsonl`: append-only attempt audit trail;
+- `records.json`: canonical latest status for every matrix cell;
+- `progress.json`: resumable execution state;
+- `aggregate.json`: condition summaries and paired contrasts.
 
 ## Core paradigms
 
@@ -124,3 +152,4 @@ See:
 - `docs/SCIENTIFIC_DESIGN.md`
 - `docs/PREREGISTRATION.md`
 - `docs/RESEARCH_ROADMAP.md`
+- `docs/PILOT_RUNBOOK.md`
