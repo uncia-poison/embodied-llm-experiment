@@ -55,8 +55,7 @@ jobs:
             ! -name "bootstrap-runtime.yml" \
             -exec rm -rf {} +
           unzip -q /tmp/runtime.zip -d .
-          rm -rf .bootstrap
-          rm -f .github/workflows/bootstrap-runtime.yml
+          rm -f .github/workflows/tests.yml
 
       - uses: actions/setup-python@v5
         with:
