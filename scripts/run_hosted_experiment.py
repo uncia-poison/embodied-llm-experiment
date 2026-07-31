@@ -29,7 +29,7 @@ def main() -> int:
     parser.add_argument("--output-dir")
     parser.add_argument(
         "--variants",
-        default="full,empty,shuffled,core_only,archive_only",
+        default="full,empty,shuffled",
     )
     parser.add_argument("--unrelated-checkpoint")
     parser.add_argument("--shuffle-seed", type=int, default=1701)
@@ -39,6 +39,7 @@ def main() -> int:
         "minimum_request_interval_seconds": args.minimum_request_interval_seconds,
         "policy_output": args.policy_output,
     }
+    exit_code = 0
     if args.mode == "episode":
         run_dir = run_hosted_episode(args.config, **common)
         result = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
@@ -67,9 +68,10 @@ def main() -> int:
             shuffle_seed=args.shuffle_seed,
             **common,
         )
+        exit_code = 0 if int(result.get("failed_variants", 0)) == 0 else 2
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":
