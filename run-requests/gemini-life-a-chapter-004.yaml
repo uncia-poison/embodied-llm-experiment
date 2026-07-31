@@ -1,0 +1,8 @@
+schema_version: 1
+request_id: gemini-life-a-chapter-004
+provider: gemini
+profile: discovery
+lineage_id: gemini-life-a
+fresh_context: false
+purpose: Continue the sealed longitudinal life from age 72 to the prospectively scheduled age-96 evaluation checkpoint
+approved: true
