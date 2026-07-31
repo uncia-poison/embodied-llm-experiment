@@ -1,0 +1,26 @@
+{
+  "actions_url": "https://github.com/uncia-poison/embodied-llm-experiment/actions/runs/30603438756",
+  "artifact_name": "embodied-gemini-discovery-30603438756",
+  "checkpoint_path": "lineages/gemini-life-a/latest.checkpoint.json",
+  "commit": "0e0b87f1d2353980f153214c8f818cfd725513b5",
+  "config": "configs/providers/gemini-discovery.yaml",
+  "exit_code": 0,
+  "lineage_id": "gemini-life-a",
+  "mode": "discovery",
+  "profile": "discovery",
+  "provider": "gemini",
+  "purpose": "Continue the sealed longitudinal life from age 48 to age 72 before the prospective age-96 evaluation",
+  "recorded_at": "2026-07-31T04:16:12.150034+00:00",
+  "request_id": "gemini-life-a-chapter-003",
+  "schema_version": 2,
+  "status": "success",
+  "variants": [
+    "full",
+    "empty",
+    "shuffled",
+    "core_only",
+    "archive_only"
+  ],
+  "workflow_attempt": 1,
+  "workflow_run_id": 30603438756
+}
