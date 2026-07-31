@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-from typing import Protocol
+from typing import Any, Protocol
 
 import httpx
 import numpy as np
@@ -98,7 +98,8 @@ class SemanticProjectionDrive:
         self.config = config
         self.embedder = self._build_embedder(config)
         self.previous = np.zeros(config.action_dim, dtype=np.float64)
-        self._set_projection(config.projection_seed)
+        self.current_projection_seed = int(config.projection_seed)
+        self._set_projection(self.current_projection_seed)
 
     @staticmethod
     def _build_embedder(config: DriveConfig) -> Embedder:
@@ -111,6 +112,7 @@ class SemanticProjectionDrive:
         raise ValueError(f"unsupported embedding provider: {config.embedding_provider}")
 
     def _set_projection(self, seed: int) -> None:
+        self.current_projection_seed = int(seed)
         rng = np.random.default_rng(seed)
         matrix = rng.normal(size=(self.config.action_dim, self.embedder.dimension))
         norms = np.linalg.norm(matrix, axis=1, keepdims=True)
@@ -134,3 +136,27 @@ class SemanticProjectionDrive:
         action = inertia * self.previous + (1.0 - inertia) * raw
         self.previous = np.clip(action, -1.0, 1.0)
         return self.previous.astype(float).tolist()
+
+    def export_state(self) -> dict[str, Any]:
+        return {
+            "current_projection_seed": self.current_projection_seed,
+            "matrix": self.matrix.astype(float).tolist(),
+            "bias": self.bias.astype(float).tolist(),
+            "previous": self.previous.astype(float).tolist(),
+        }
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        matrix = np.asarray(state.get("matrix", []), dtype=np.float64)
+        bias = np.asarray(state.get("bias", []), dtype=np.float64)
+        previous = np.asarray(state.get("previous", []), dtype=np.float64)
+        expected_rows = self.config.action_dim
+        if matrix.ndim != 2 or matrix.shape[0] != expected_rows:
+            raise ValueError("checkpoint semantic drive matrix has incompatible shape")
+        if bias.shape != (expected_rows,) or previous.shape != (expected_rows,):
+            raise ValueError("checkpoint semantic drive vectors have incompatible shape")
+        self.matrix = matrix
+        self.bias = bias
+        self.previous = np.clip(previous, -1.0, 1.0)
+        self.current_projection_seed = int(
+            state.get("current_projection_seed", self.config.projection_seed)
+        )
