@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import random
 from collections import deque
+from typing import Any
 
+from .checkpoint import decode_random_state, encode_random_state
 from .config import CouplingBlock
 
 
@@ -60,3 +62,24 @@ class CouplingController:
             "remap_seed": block.remap_seed,
             "reset_context_at_start": block.reset_context_at_start,
         }
+
+    def export_state(self) -> dict[str, Any]:
+        return {
+            "rng_state": encode_random_state(self.rng.getstate()),
+            "delay_buffer": [list(item) for item in self.delay_buffer],
+            "last_block_key": list(self.last_block_key) if self.last_block_key is not None else None,
+        }
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        if "rng_state" in state:
+            self.rng.setstate(decode_random_state(state["rng_state"]))
+        self.delay_buffer.clear()
+        for item in state.get("delay_buffer", []):
+            self.delay_buffer.append([float(value) for value in item])
+        key = state.get("last_block_key")
+        self.last_block_key = None if key is None else (
+            int(key[0]),
+            int(key[1]),
+            str(key[2]),
+            None if key[3] is None else int(key[3]),
+        )
