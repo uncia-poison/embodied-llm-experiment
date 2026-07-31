@@ -11,13 +11,29 @@ on:
           - deepseek
           - gemini
       profile:
-        description: Low-cost smoke or full exploratory episode
+        description: Episode, probe-free discovery chapter, or frozen evaluation
         required: true
         default: smoke
         type: choice
         options:
           - smoke
           - episode
+          - discovery
+          - evaluation
+      lineage_id:
+        description: Required for discovery/evaluation; letters, digits, dot, underscore, hyphen
+        required: false
+        type: string
+      variants:
+        description: Evaluation memory variants, comma separated
+        required: false
+        default: full,empty,shuffled
+        type: string
+      fresh_context:
+        description: Clear explicit chat history and working memory before a discovery chapter
+        required: false
+        default: false
+        type: boolean
       acknowledgement:
         description: Type RUN to authorize an external API call
         required: true
@@ -31,7 +47,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: hosted-llm-${{ github.run_id }}
+  group: hosted-llm-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -46,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -62,9 +78,16 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            fresh=()
+            if [[ "${{ inputs.fresh_context }}" == "true" ]]; then
+              fresh=(--fresh-context)
+            fi
             python scripts/resolve_hosted_request.py \
               --provider "${{ inputs.provider }}" \
               --profile "${{ inputs.profile }}" \
+              --lineage-id "${{ inputs.lineage_id }}" \
+              --variants "${{ inputs.variants }}" \
+              "${fresh[@]}" \
               --acknowledgement "${{ inputs.acknowledgement }}" >> "$GITHUB_OUTPUT"
           else
             request_file="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" \
@@ -77,17 +100,28 @@ jobs:
             echo "request_file=$request_file" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Verify required secret
+      - name: Verify required secret and checkpoint
         shell: bash
         run: |
           set -euo pipefail
           provider="${{ steps.request.outputs.provider }}"
+          mode="${{ steps.request.outputs.mode }}"
+          checkpoint="${{ steps.request.outputs.checkpoint_path }}"
           if [[ "$provider" == "deepseek" && -z "${DEEPSEEK_API_KEY}" ]]; then
             echo "Repository secret DEEPSEEK_API_KEY is not configured" >&2
             exit 1
           fi
           if [[ "$provider" == "gemini" && -z "${GEMINI_API_KEY}" ]]; then
             echo "Repository secret GEMINI_API_KEY is not configured" >&2
+            exit 1
+          fi
+          if [[ "$mode" == "evaluation" && ! -f "$checkpoint" ]]; then
+            echo "Frozen lineage checkpoint not found: $checkpoint" >&2
+            exit 1
+          fi
+          unrelated="${{ steps.request.outputs.unrelated_checkpoint_path }}"
+          if [[ -n "$unrelated" && ! -f "$unrelated" ]]; then
+            echo "Unrelated lineage checkpoint not found: $unrelated" >&2
             exit 1
           fi
 
@@ -97,12 +131,16 @@ jobs:
           mkdir -p hosted-output
           cat > hosted-output/launch.json <<'JSON'
           {
-            "schema_version": 1,
+            "schema_version": 2,
             "provider": "${{ steps.request.outputs.provider }}",
             "profile": "${{ steps.request.outputs.profile }}",
+            "mode": "${{ steps.request.outputs.mode }}",
             "config": "${{ steps.request.outputs.config }}",
             "request_id": "${{ steps.request.outputs.request_id }}",
             "purpose": "${{ steps.request.outputs.purpose }}",
+            "lineage_id": "${{ steps.request.outputs.lineage_id }}",
+            "checkpoint_path": "${{ steps.request.outputs.checkpoint_path }}",
+            "variants": "${{ steps.request.outputs.variants }}",
             "repository": "${{ github.repository }}",
             "commit": "${{ github.sha }}",
             "workflow_run_id": "${{ github.run_id }}",
@@ -122,6 +160,8 @@ jobs:
           mkdir -p hosted-output
           config="${{ steps.request.outputs.config }}"
           provider="${{ steps.request.outputs.provider }}"
+          mode="${{ steps.request.outputs.mode }}"
+          checkpoint="${{ steps.request.outputs.checkpoint_path }}"
           interval="0"
           if [[ "$provider" == "gemini" ]]; then
             interval="${HOSTED_GEMINI_MIN_INTERVAL_SECONDS}"
@@ -131,10 +171,33 @@ jobs:
             2> >(tee hosted-output/preflight.stderr >&2)
           status=$?
           if [[ $status -eq 0 ]]; then
-            python scripts/run_hosted_experiment.py \
-              --config "$config" \
-              --minimum-request-interval-seconds "$interval" \
-              --policy-output hosted-output/transport-policy.json \
+            args=(
+              python scripts/run_hosted_experiment.py
+              --config "$config"
+              --mode "$mode"
+              --minimum-request-interval-seconds "$interval"
+              --policy-output hosted-output/transport-policy.json
+            )
+            if [[ "$mode" == "discovery" ]]; then
+              if [[ -f "$checkpoint" ]]; then
+                args+=(--checkpoint-in "$checkpoint")
+              fi
+              args+=(--checkpoint-out hosted-output/latest.checkpoint.json --checkpoint-every 1)
+              if [[ "${{ steps.request.outputs.fresh_context }}" == "true" ]]; then
+                args+=(--fresh-context)
+              fi
+            elif [[ "$mode" == "evaluation" ]]; then
+              args+=(
+                --checkpoint-in "$checkpoint"
+                --output-dir hosted-output/evaluation
+                --variants "${{ steps.request.outputs.variants }}"
+              )
+              unrelated="${{ steps.request.outputs.unrelated_checkpoint_path }}"
+              if [[ -n "$unrelated" ]]; then
+                args+=(--unrelated-checkpoint "$unrelated")
+              fi
+            fi
+            "${args[@]}" \
               > >(tee hosted-output/console-summary.json) \
               2> >(tee hosted-output/experiment.stderr >&2)
             status=$?
@@ -150,32 +213,30 @@ jobs:
         shell: bash
         run: |
           set +e
+          root="provider-runs"
+          if [[ "${{ steps.request.outputs.mode }}" == "evaluation" ]]; then
+            root="hosted-output/evaluation/runs"
+          fi
           python scripts/render_hosted_report.py \
-            --root provider-runs \
+            --root "$root" \
             --output hosted-output/report.md
           if [[ -d provider-runs ]]; then
             cp -R provider-runs hosted-output/provider-runs
           fi
           cat hosted-output/report.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
 
-      - name: Upload private research artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.request.outputs.artifact_name }}-${{ github.run_id }}
-          path: hosted-output/
-          if-no-files-found: error
-          retention-days: 90
-          compression-level: 6
-
-      - name: Publish private run receipt
+      - name: Prepare private receipt and lineage update
         if: always() && steps.request.outputs.request_id != ''
         env:
           REQUEST_ID: ${{ steps.request.outputs.request_id }}
           PROVIDER: ${{ steps.request.outputs.provider }}
           PROFILE: ${{ steps.request.outputs.profile }}
+          MODE: ${{ steps.request.outputs.mode }}
           PURPOSE: ${{ steps.request.outputs.purpose }}
+          LINEAGE_ID: ${{ steps.request.outputs.lineage_id }}
           CONFIG_PATH: ${{ steps.request.outputs.config }}
+          CHECKPOINT_PATH: ${{ steps.request.outputs.checkpoint_path }}
+          VARIANTS: ${{ steps.request.outputs.variants }}
           ARTIFACT_NAME: ${{ steps.request.outputs.artifact_name }}-${{ github.run_id }}
           RUN_EXIT_CODE: ${{ steps.experiment.outputs.exit_code }}
           RUN_ID: ${{ github.run_id }}
@@ -200,12 +261,16 @@ jobs:
           exit_code = os.environ.get("RUN_EXIT_CODE", "")
           status = "success" if exit_code == "0" else "failed"
           payload = {
-              "schema_version": 1,
+              "schema_version": 2,
               "request_id": os.environ["REQUEST_ID"],
               "provider": os.environ.get("PROVIDER", ""),
               "profile": os.environ.get("PROFILE", ""),
+              "mode": os.environ.get("MODE", ""),
               "purpose": os.environ.get("PURPOSE", ""),
+              "lineage_id": os.environ.get("LINEAGE_ID", ""),
               "config": os.environ.get("CONFIG_PATH", ""),
+              "checkpoint_path": os.environ.get("CHECKPOINT_PATH", ""),
+              "variants": [item for item in os.environ.get("VARIANTS", "").split(",") if item],
               "status": status,
               "exit_code": int(exit_code) if exit_code.isdigit() else None,
               "workflow_run_id": int(os.environ["RUN_ID"]),
@@ -221,13 +286,52 @@ jobs:
               encoding="utf-8",
           )
           PY
+
+          if [[ "${RUN_EXIT_CODE}" == "0" && "$MODE" == "discovery" ]]; then
+            if [[ ! -f hosted-output/latest.checkpoint.json ]]; then
+              echo "Successful discovery did not produce a checkpoint" >&2
+              exit 1
+            fi
+            lineage_dir="lineages/${LINEAGE_ID}"
+            mkdir -p "$lineage_dir/history"
+            embodied-llm checkpoint hosted-output/latest.checkpoint.json \
+              > hosted-output/checkpoint-inspection.json
+            cp hosted-output/latest.checkpoint.json "$lineage_dir/latest.checkpoint.json"
+            cp hosted-output/checkpoint-inspection.json "$lineage_dir/latest.inspect.json"
+            cp "$receipt_dir/receipt.json" "$lineage_dir/history/${REQUEST_ID}.receipt.json"
+          fi
+
+      - name: Upload private research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.request.outputs.artifact_name }}-${{ github.run_id }}
+          path: hosted-output/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Commit private receipt and lineage checkpoint
+        if: always() && steps.request.outputs.request_id != ''
+        env:
+          REQUEST_ID: ${{ steps.request.outputs.request_id }}
+          MODE: ${{ steps.request.outputs.mode }}
+          LINEAGE_ID: ${{ steps.request.outputs.lineage_id }}
+          RUN_EXIT_CODE: ${{ steps.experiment.outputs.exit_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "embodied-llm-runner"
           git config user.email "actions@users.noreply.github.com"
-          git add "$receipt_dir"
+          git add "run-results/${REQUEST_ID}"
+          if [[ "${RUN_EXIT_CODE}" == "0" && "$MODE" == "discovery" ]]; then
+            git add "lineages/${LINEAGE_ID}"
+          fi
           if git diff --cached --quiet; then
             exit 0
           fi
           git commit -m "Record hosted run ${REQUEST_ID} [skip ci]"
+          git pull --rebase origin main
           git push origin HEAD:main
 
       - name: Propagate experiment status
