@@ -1,0 +1,16 @@
+{
+  "actions_url": "https://github.com/uncia-poison/embodied-llm-experiment/actions/runs/30598633954",
+  "artifact_name": "embodied-gemini-smoke-30598633954",
+  "commit": "ebb2bc9c079037f10cc690a6638181896a3f3289",
+  "config": "configs/providers/gemini-api-smoke.yaml",
+  "exit_code": 0,
+  "profile": "smoke",
+  "provider": "gemini",
+  "purpose": "Validate the six-tick causal loop on the free high-volume Gemini Flash-Lite model with paced requests",
+  "recorded_at": "2026-07-31T02:21:14.566050+00:00",
+  "request_id": "gemini-flash-lite-smoke-20260731-0230",
+  "schema_version": 1,
+  "status": "success",
+  "workflow_attempt": 1,
+  "workflow_run_id": 30598633954
+}
