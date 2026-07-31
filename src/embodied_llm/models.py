@@ -156,8 +156,9 @@ class GeminiModel:
 
     def generate(self, messages, *, temperature=None, max_tokens=None) -> str:
         system_text, contents = self._contents(messages)
+        # Gemini 3.6 deprecated temperature/top-p/top-k. Keep the adapter forward-compatible by
+        # controlling output through the protocol and structured JSON MIME type instead.
         generation_config = {
-            "temperature": self.config.temperature if temperature is None else temperature,
             "maxOutputTokens": self.config.max_tokens if max_tokens is None else max_tokens,
         }
         if self.config.json_mode:

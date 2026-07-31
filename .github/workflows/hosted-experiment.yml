@@ -1,0 +1,167 @@
+name: Hosted LLM experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Hosted model provider
+        required: true
+        type: choice
+        options:
+          - deepseek
+          - gemini
+      profile:
+        description: Low-cost smoke or full exploratory episode
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - episode
+      acknowledgement:
+        description: Type RUN to authorize a paid API call
+        required: true
+        type: string
+  push:
+    paths:
+      - "run-requests/*.yaml"
+      - "run-requests/*.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-llm-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      EMBODIED_LLM_USAGE_LOG: hosted-output/model-usage.jsonl
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e .
+
+      - name: Resolve allowlisted request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            python scripts/resolve_hosted_request.py \
+              --provider "${{ inputs.provider }}" \
+              --profile "${{ inputs.profile }}" \
+              --acknowledgement "${{ inputs.acknowledgement }}" >> "$GITHUB_OUTPUT"
+          else
+            request_file="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" \
+              | grep -E '^run-requests/[^/]+\.ya?ml$' | tail -n 1)"
+            if [[ -z "$request_file" ]]; then
+              echo "No hosted request YAML found in triggering commit" >&2
+              exit 1
+            fi
+            python scripts/resolve_hosted_request.py --request "$request_file" >> "$GITHUB_OUTPUT"
+            echo "request_file=$request_file" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify required secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          provider="${{ steps.request.outputs.provider }}"
+          if [[ "$provider" == "deepseek" && -z "${DEEPSEEK_API_KEY}" ]]; then
+            echo "Repository secret DEEPSEEK_API_KEY is not configured" >&2
+            exit 1
+          fi
+          if [[ "$provider" == "gemini" && -z "${GEMINI_API_KEY}" ]]; then
+            echo "Repository secret GEMINI_API_KEY is not configured" >&2
+            exit 1
+          fi
+
+      - name: Record immutable launch metadata
+        shell: bash
+        run: |
+          mkdir -p hosted-output
+          cat > hosted-output/launch.json <<'JSON'
+          {
+            "schema_version": 1,
+            "provider": "${{ steps.request.outputs.provider }}",
+            "profile": "${{ steps.request.outputs.profile }}",
+            "config": "${{ steps.request.outputs.config }}",
+            "request_id": "${{ steps.request.outputs.request_id }}",
+            "purpose": "${{ steps.request.outputs.purpose }}",
+            "repository": "${{ github.repository }}",
+            "commit": "${{ github.sha }}",
+            "workflow_run_id": "${{ github.run_id }}",
+            "workflow_attempt": "${{ github.run_attempt }}"
+          }
+          JSON
+          cp "${{ steps.request.outputs.config }}" hosted-output/effective-config.yaml
+          if [[ -n "${{ steps.request.outputs.request_file }}" ]]; then
+            cp "${{ steps.request.outputs.request_file }}" hosted-output/request.yaml
+          fi
+
+      - name: Preflight and run experiment
+        id: experiment
+        shell: bash
+        run: |
+          set +e
+          mkdir -p hosted-output
+          config="${{ steps.request.outputs.config }}"
+          embodied-llm doctor --config "$config" \
+            > >(tee hosted-output/preflight.json) \
+            2> >(tee hosted-output/preflight.stderr >&2)
+          status=$?
+          if [[ $status -eq 0 ]]; then
+            embodied-llm run --config "$config" \
+              > >(tee hosted-output/console-summary.json) \
+              2> >(tee hosted-output/experiment.stderr >&2)
+            status=$?
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Render durable report
+        if: always()
+        env:
+          HOSTED_REQUEST_ID: ${{ steps.request.outputs.request_id }}
+          HOSTED_PURPOSE: ${{ steps.request.outputs.purpose }}
+        shell: bash
+        run: |
+          set +e
+          python scripts/render_hosted_report.py \
+            --root provider-runs \
+            --output hosted-output/report.md
+          if [[ -d provider-runs ]]; then
+            cp -R provider-runs hosted-output/provider-runs
+          fi
+          cat hosted-output/report.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Upload private research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.request.outputs.artifact_name }}-${{ github.run_id }}
+          path: hosted-output/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Propagate experiment status
+        if: always()
+        shell: bash
+        run: |
+          code="${{ steps.experiment.outputs.exit_code }}"
+          exit "${code:-1}"

@@ -86,7 +86,7 @@ def test_gemini_adapter_serializes_roles_and_json_mode(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     config = ModelConfig(
         provider="gemini",
-        model="gemini-test",
+        model="gemini-3.6-flash",
         endpoint="https://example.test/v1beta/models/{model}:generateContent",
         api_key_env="GEMINI_API_KEY",
         json_mode=True,
@@ -118,11 +118,15 @@ def test_gemini_adapter_serializes_roles_and_json_mode(monkeypatch):
     ]
     assert model.generate(messages) == '{"utterance":"gemini"}'
     assert captured["api_key"] == "test-key"
-    assert captured["url"].endswith("/gemini-test:generateContent")
+    assert captured["url"].endswith("/gemini-3.6-flash:generateContent")
     assert captured["payload"]["systemInstruction"]["parts"][0]["text"] == "System instruction"
     assert [item["role"] for item in captured["payload"]["contents"]] == [
         "user",
         "model",
         "user",
     ]
-    assert captured["payload"]["generationConfig"]["responseMimeType"] == "application/json"
+    generation = captured["payload"]["generationConfig"]
+    assert generation["responseMimeType"] == "application/json"
+    assert "temperature" not in generation
+    assert "topP" not in generation
+    assert "topK" not in generation
