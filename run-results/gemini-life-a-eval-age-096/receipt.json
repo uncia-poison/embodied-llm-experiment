@@ -1,0 +1,24 @@
+{
+  "actions_url": "https://github.com/uncia-poison/embodied-llm-experiment/actions/runs/30604293203",
+  "artifact_name": "embodied-gemini-evaluation-30604293203",
+  "checkpoint_path": "lineages/gemini-life-a/latest.checkpoint.json",
+  "commit": "b691ba41b2f69cafcc4a6192d9ca3152659b867b",
+  "config": "configs/providers/gemini-evaluation.yaml",
+  "exit_code": 0,
+  "lineage_id": "gemini-life-a",
+  "mode": "evaluation",
+  "profile": "evaluation",
+  "provider": "gemini",
+  "purpose": "First prospective frozen-memory evaluation at age 96 under issue 9",
+  "recorded_at": "2026-07-31T04:37:26.060455+00:00",
+  "request_id": "gemini-life-a-eval-age-096",
+  "schema_version": 2,
+  "status": "success",
+  "variants": [
+    "full",
+    "empty",
+    "shuffled"
+  ],
+  "workflow_attempt": 1,
+  "workflow_run_id": 30604293203
+}
