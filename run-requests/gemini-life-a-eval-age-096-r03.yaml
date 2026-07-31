@@ -1,0 +1,11 @@
+schema_version: 1
+request_id: gemini-life-a-eval-age-096-r03
+provider: gemini
+profile: evaluation
+lineage_id: gemini-life-a
+variants:
+  - full
+  - empty
+  - shuffled
+purpose: Frozen-memory age-96 evaluation replicate 3 under issue 9 amendment
+approved: true
