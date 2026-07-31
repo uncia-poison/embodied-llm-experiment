@@ -1,0 +1,6 @@
+schema_version: 1
+request_id: gemini-smoke-20260731-0220
+provider: gemini
+profile: smoke
+purpose: Retry the autonomous six-tick Gemini causal loop with free-tier-safe request pacing
+approved: true
