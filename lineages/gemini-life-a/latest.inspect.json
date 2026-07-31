@@ -1,13 +1,13 @@
 {
   "path": "hosted-output/latest.checkpoint.json",
-  "checkpoint_sha256": "74be9adbb41e43ed4e14212abe9538cd460f88ac64b66180a03ad457c66880c7",
+  "checkpoint_sha256": "8d3c4f90685ba962de8c2fcaf0786abd2bbf0346d4c9685a859d8576961bb9a8",
   "lineage_id": "7e10bd649dc44089a22f04c878af6ed3",
   "phase": "discovery",
-  "age_ticks": 72,
-  "core_chars": 94,
-  "archive_items": 72,
+  "age_ticks": 96,
+  "core_chars": 109,
+  "archive_items": 96,
   "working_items": 4,
-  "parent_checkpoint_sha256": "123c42e1479306417f137696259cdc80229b20b3a99f1a47e2e2767349df77ed",
+  "parent_checkpoint_sha256": "74be9adbb41e43ed4e14212abe9538cd460f88ac64b66180a03ad457c66880c7",
   "source_checkpoint_sha256": null,
   "evaluation_memory_variant": null
 }
