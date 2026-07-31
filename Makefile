@@ -1,4 +1,8 @@
-.PHONY: install install-semantic test doctor smoke suite manual-deepseek manual-gemini deepseek-api gemini-api pilot-plan pilot-check pilot pilot-blind battery-plan battery-check battery battery-blind clean
+.PHONY: install install-semantic test doctor smoke suite manual-deepseek manual-gemini deepseek-api gemini-api discover-gemini inspect-lineage evaluate-gemini pilot-plan pilot-check pilot pilot-blind battery-plan battery-check battery battery-blind clean
+
+LINEAGE ?= local-gemini-life
+CHECKPOINT ?= longitudinal-runs/$(LINEAGE)/latest.checkpoint.json
+EVALUATION_DIR ?= longitudinal-runs/$(LINEAGE)/evaluation
 
 install:
 	python -m pip install -e .[dev]
@@ -34,6 +38,22 @@ gemini-api:
 	embodied-llm doctor --config configs/providers/gemini-api.yaml
 	embodied-llm run --config configs/providers/gemini-api.yaml
 
+discover-gemini:
+	mkdir -p $(dir $(CHECKPOINT))
+	embodied-llm doctor --config configs/providers/gemini-discovery.yaml
+	@if [ -f "$(CHECKPOINT)" ]; then \
+		embodied-llm discover --config configs/providers/gemini-discovery.yaml --checkpoint-in "$(CHECKPOINT)" --checkpoint-out "$(CHECKPOINT)" --checkpoint-every 1; \
+	else \
+		embodied-llm discover --config configs/providers/gemini-discovery.yaml --checkpoint-out "$(CHECKPOINT)" --checkpoint-every 1; \
+	fi
+
+inspect-lineage:
+	embodied-llm checkpoint "$(CHECKPOINT)"
+
+evaluate-gemini:
+	embodied-llm doctor --config configs/providers/gemini-evaluation.yaml
+	embodied-llm evaluate --config configs/providers/gemini-evaluation.yaml --checkpoint "$(CHECKPOINT)" --output-dir "$(EVALUATION_DIR)" --variants full,empty,shuffled
+
 pilot-plan:
 	embodied-llm suite --suite configs/suites/causal-subject-pilot.yaml --plan
 
@@ -61,4 +81,4 @@ battery-blind:
 	embodied-llm blind suite-runs/causal-subject-battery-v1
 
 clean:
-	rm -rf runs suite-runs manual-runs manual-sessions provider-runs .pytest_cache .ruff_cache build dist *.egg-info src/*.egg-info
+	rm -rf runs suite-runs manual-runs manual-sessions provider-runs longitudinal-runs .pytest_cache .ruff_cache build dist *.egg-info src/*.egg-info
