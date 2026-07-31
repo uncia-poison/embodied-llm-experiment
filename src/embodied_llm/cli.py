@@ -7,6 +7,12 @@ from pathlib import Path
 from .blinding import create_blind_package
 from .config import ExperimentConfig
 from .experiment import ExperimentRunner
+from .longitudinal import (
+    DEFAULT_VARIANTS,
+    inspect_checkpoint,
+    run_discovery,
+    run_evaluation,
+)
 from .metrics import summarize
 from .ownership import OwnershipPairRunner
 from .preflight import run_preflight
@@ -26,6 +32,33 @@ def run_command(config_path: str) -> int:
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
+
+
+def discover_command(args: argparse.Namespace) -> int:
+    result = run_discovery(
+        args.config,
+        checkpoint_in=args.checkpoint_in,
+        checkpoint_out=args.checkpoint_out,
+        checkpoint_every=args.checkpoint_every,
+        fresh_context=args.fresh_context,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def evaluate_command(args: argparse.Namespace) -> int:
+    variants = [item.strip() for item in args.variants.split(",")]
+    result = run_evaluation(
+        args.config,
+        checkpoint_path=args.checkpoint,
+        output_dir=args.output_dir,
+        variants=variants,
+        unrelated_checkpoint_path=args.unrelated_checkpoint,
+        shuffle_seed=args.shuffle_seed,
+        continue_on_error=not args.fail_fast,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["failed_variants"] == 0 else 2
 
 
 def analyze_command(run_dir: str) -> int:
@@ -95,6 +128,44 @@ def main() -> int:
     run_parser = sub.add_parser("run", help="run one configured episode")
     run_parser.add_argument("--config", required=True)
 
+    discover_parser = sub.add_parser(
+        "discover",
+        help="run a probe-free life chapter and atomically export a resumable checkpoint",
+    )
+    discover_parser.add_argument("--config", required=True)
+    discover_parser.add_argument("--checkpoint-out", required=True)
+    discover_parser.add_argument("--checkpoint-in")
+    discover_parser.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=1,
+        help="write after every N completed ticks; 0 writes only the final state",
+    )
+    discover_parser.add_argument(
+        "--fresh-context",
+        action="store_true",
+        help="simulate sleep by clearing chat history and working memory while retaining core/archive",
+    )
+
+    evaluate_parser = sub.add_parser(
+        "evaluate",
+        help="evaluate matched memory variants from one frozen discovery checkpoint",
+    )
+    evaluate_parser.add_argument("--config", required=True)
+    evaluate_parser.add_argument("--checkpoint", required=True)
+    evaluate_parser.add_argument("--output-dir", required=True)
+    evaluate_parser.add_argument(
+        "--variants",
+        default=",".join(DEFAULT_VARIANTS),
+        help="comma-separated: full,empty,shuffled,core_only,archive_only,unrelated",
+    )
+    evaluate_parser.add_argument("--unrelated-checkpoint")
+    evaluate_parser.add_argument("--shuffle-seed", type=int, default=1701)
+    evaluate_parser.add_argument("--fail-fast", action="store_true")
+
+    checkpoint_parser = sub.add_parser("checkpoint", help="inspect a sealed longitudinal checkpoint")
+    checkpoint_parser.add_argument("path")
+
     suite_parser = sub.add_parser("suite", help="plan, validate or run a condition suite")
     suite_parser.add_argument("--suite", required=True)
     suite_parser.add_argument("--plan", action="store_true", help="print the exact run matrix and call budget")
@@ -119,6 +190,13 @@ def main() -> int:
     args = parser.parse_args()
     if args.command == "run":
         return run_command(args.config)
+    if args.command == "discover":
+        return discover_command(args)
+    if args.command == "evaluate":
+        return evaluate_command(args)
+    if args.command == "checkpoint":
+        print(json.dumps(inspect_checkpoint(args.path), ensure_ascii=False, indent=2))
+        return 0
     if args.command == "suite":
         if args.plan and args.preflight:
             parser.error("--plan and --preflight are mutually exclusive")

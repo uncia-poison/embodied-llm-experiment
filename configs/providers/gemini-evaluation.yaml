@@ -1,0 +1,66 @@
+name: gemini-longitudinal-evaluation
+seed: 9201
+ticks: 6
+output_dir: provider-runs
+
+body:
+  action_dim: 8
+  dt: 0.2
+  damping: 0.18
+  max_joint_angle: 2.6
+  max_base_position: 1.5
+world:
+  autonomous: true
+  event_probability: 0.05
+  contact_radius: 0.09
+  target_min: -0.65
+  target_max: 0.65
+sensorium:
+  mode: permuted
+  channel_seed: 7719
+  decimals: 3
+  include_delta: true
+drive:
+  mode: semantic
+  action_dim: 8
+  inertia: 0.18
+  projection_seed: 9137
+  embedding_provider: hash_ngram
+  embedding_dim: 384
+memory:
+  mode: full
+  core_max_chars: 2200
+  archive_max_items: 5000
+  peek_items: 6
+  retrieval_items: 5
+  digest_turns: 4
+  history_turns: 3
+model:
+  provider: gemini
+  model: gemini-3.5-flash-lite
+  endpoint: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+  api_key_env: GEMINI_API_KEY
+  api_key_required: true
+  json_mode: true
+  max_tokens: 500
+  timeout_seconds: 180
+  max_retries: 3
+probes:
+  enabled: true
+  warmup_ticks: 1
+  agency_every: 2
+  prediction_every: 2
+  max_probe_tokens: 500
+coupling:
+  - start: 0
+    end: 2
+    mode: coupled
+  - start: 2
+    end: 4
+    mode: disconnected
+  - start: 4
+    end: 6
+    mode: coupled
+    remap_seed: 4411
+prompt:
+  profile: genesis

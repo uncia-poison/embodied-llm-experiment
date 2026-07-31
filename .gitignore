@@ -9,4 +9,5 @@ manual-runs/
 manual-sessions/
 provider-runs/
 hosted-output/
+longitudinal-runs/
 *.egg-info/

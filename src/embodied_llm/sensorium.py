@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+from typing import Any
 
 from .config import SensoriumConfig
 
@@ -13,6 +14,31 @@ class SensoriumFrame:
     opaque_values: dict[str, float | None]
     researcher_values: dict[str, float]
     mapping: dict[str, str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "tick": self.tick,
+            "text": self.text,
+            "opaque_values": dict(self.opaque_values),
+            "researcher_values": dict(self.researcher_values),
+            "mapping": dict(self.mapping),
+        }
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "SensoriumFrame":
+        return cls(
+            tick=int(value["tick"]),
+            text=str(value["text"]),
+            opaque_values={
+                str(key): None if item is None else float(item)
+                for key, item in dict(value["opaque_values"]).items()
+            },
+            researcher_values={
+                str(key): float(item)
+                for key, item in dict(value["researcher_values"]).items()
+            },
+            mapping={str(key): str(item) for key, item in dict(value["mapping"]).items()},
+        )
 
 
 class SensoriumEncoder:
@@ -71,8 +97,28 @@ class SensoriumEncoder:
                 previous = self._last_opaque[opaque]
                 delta = None if previous is None else round(shown - previous, self.config.decimals)
                 if delta is not None:
-                    lines.append(f"{opaque} = {shown:+.{self.config.decimals}f}  Δ {delta:+.{self.config.decimals}f}")
+                    lines.append(
+                        f"{opaque} = {shown:+.{self.config.decimals}f}  "
+                        f"Δ {delta:+.{self.config.decimals}f}"
+                    )
                     continue
             lines.append(f"{opaque} = {shown:+.{self.config.decimals}f}")
         self._last_opaque = dict(opaque_values)
         return SensoriumFrame(tick, "\n".join(lines), opaque_values, dict(channels), mapping)
+
+    def export_state(self) -> dict[str, Any]:
+        return {
+            "ordered_names": list(self._ordered_names) if self._ordered_names is not None else None,
+            "permutation": list(self._permutation) if self._permutation is not None else None,
+            "last_opaque": dict(self._last_opaque),
+        }
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        ordered = state.get("ordered_names")
+        permutation = state.get("permutation")
+        self._ordered_names = None if ordered is None else [str(item) for item in ordered]
+        self._permutation = None if permutation is None else [int(item) for item in permutation]
+        self._last_opaque = {
+            str(key): None if value is None else float(value)
+            for key, value in dict(state.get("last_opaque", {})).items()
+        }

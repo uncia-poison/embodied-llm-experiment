@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class Drive(Protocol):
     def __call__(self, text: str) -> list[float]: ...
 
     def remap(self, seed: int) -> None: ...
+
+    def export_state(self) -> dict[str, Any]: ...
+
+    def import_state(self, state: dict[str, Any]) -> None: ...
 
 
 def clip_action(values: list[float], action_dim: int) -> list[float]:

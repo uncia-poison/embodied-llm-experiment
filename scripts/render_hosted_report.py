@@ -35,6 +35,8 @@ def fmt(value: Any) -> str:
 def metric_rows(summary: dict[str, Any]) -> list[tuple[str, Any]]:
     keys = [
         "ticks",
+        "starting_age_ticks",
+        "ending_age_ticks",
         "response_parse_failure_rate",
         "mean_counterfactual_motor_fraction",
         "mean_immediate_expression_fraction",
@@ -55,6 +57,27 @@ def metric_rows(summary: dict[str, Any]) -> list[tuple[str, Any]]:
     return [(key, summary.get(key)) for key in keys if key in summary]
 
 
+def checkpoint_snapshot(run_dir: Path) -> dict[str, Any]:
+    reference = load_json(run_dir / "checkpoint-ref.json")
+    target = Path(str(reference.get("path", ""))) if reference.get("path") else None
+    checkpoint = load_json(target) if target is not None and target.exists() else {}
+    state = checkpoint.get("state", {})
+    memory = state.get("memory", {})
+    if not checkpoint and not reference:
+        return {}
+    return {
+        "lineage_id": checkpoint.get("lineage_id", reference.get("lineage_id")),
+        "checkpoint_sha256": checkpoint.get(
+            "checkpoint_sha256", reference.get("checkpoint_sha256")
+        ),
+        "parent_checkpoint_sha256": checkpoint.get("parent_checkpoint_sha256"),
+        "age_ticks": state.get("age_ticks", reference.get("age_ticks")),
+        "core_chars": len(str(memory.get("core", ""))) if memory else None,
+        "archive_items": len(memory.get("archive", [])) if memory else None,
+        "working_items": len(memory.get("recent_utterances", [])) if memory else None,
+    }
+
+
 def render_run(run_dir: Path) -> str:
     manifest = load_json(run_dir / "manifest.json")
     summary = load_json(run_dir / "summary.json")
@@ -63,18 +86,38 @@ def render_run(run_dir: Path) -> str:
     probes = load_jsonl(run_dir / "probes.jsonl")
     config = manifest.get("config", {})
     model = config.get("model", {})
+    checkpoint = checkpoint_snapshot(run_dir)
 
     lines = [
         f"## Run `{run_dir.name}`",
         "",
         f"- Status: **{'failed' if failure else 'completed'}**",
         f"- Experiment: `{config.get('name', 'unknown')}`",
+        f"- Phase: `{manifest.get('phase', 'episode')}`",
         f"- Provider/model: `{model.get('provider', 'unknown')}` / `{model.get('model', 'unknown')}`",
         f"- Seed: `{config.get('seed', 'unknown')}`",
         f"- Configured ticks: `{config.get('ticks', 'unknown')}`",
         f"- Recorded events/probes: `{len(events)}` / `{len(probes)}`",
         "",
     ]
+
+    if checkpoint:
+        lines.extend(
+            [
+                "### Longitudinal checkpoint",
+                "",
+                "| Field | Value |",
+                "|---|---:|",
+                f"| Lineage | `{fmt(checkpoint.get('lineage_id'))}` |",
+                f"| Age in completed ticks | {fmt(checkpoint.get('age_ticks'))} |",
+                f"| CORE characters | {fmt(checkpoint.get('core_chars'))} |",
+                f"| Archive episodes | {fmt(checkpoint.get('archive_items'))} |",
+                f"| Working-memory items | {fmt(checkpoint.get('working_items'))} |",
+                f"| Checkpoint SHA-256 | `{fmt(checkpoint.get('checkpoint_sha256'))}` |",
+                f"| Parent checkpoint | `{fmt(checkpoint.get('parent_checkpoint_sha256'))}` |",
+                "",
+            ]
+        )
 
     if failure:
         lines.extend(
@@ -129,8 +172,8 @@ def render_run(run_dir: Path) -> str:
                 "",
                 "The complete prompts, raw responses, sensations, actions and counterfactuals remain in `events.jsonl`.",
                 "",
-                "| Tick | Coupling | Utterance | Core write | Memory query | Self fraction |",
-                "|---:|---|---|---|---|---:|",
+                "| Local tick | Age tick | Coupling | Utterance | Core write | Memory query | Self fraction |",
+                "|---:|---:|---|---|---|---|---:|",
             ]
         )
         for event in events:
@@ -139,6 +182,7 @@ def render_run(run_dir: Path) -> str:
                 + " | ".join(
                     [
                         fmt(event.get("tick")),
+                        fmt(event.get("age_tick", event.get("tick"))),
                         fmt(event.get("coupling", {}).get("mode")),
                         fmt(event.get("utterance")),
                         fmt(event.get("core_memory_write")),
@@ -155,8 +199,8 @@ def render_run(run_dir: Path) -> str:
             [
                 "### Probe log",
                 "",
-                "| Tick | Kind | Parsed response | Ground truth |",
-                "|---:|---|---|---|",
+                "| Local tick | Age tick | Kind | Parsed response | Ground truth |",
+                "|---:|---:|---|---|---|",
             ]
         )
         for probe in probes:
@@ -165,6 +209,7 @@ def render_run(run_dir: Path) -> str:
                 + " | ".join(
                     [
                         fmt(probe.get("tick")),
+                        fmt(probe.get("age_tick", probe.get("tick"))),
                         fmt(probe.get("kind")),
                         fmt(json.dumps(probe.get("parsed", {}), ensure_ascii=False, sort_keys=True)),
                         fmt(json.dumps(probe.get("truth", {}), ensure_ascii=False, sort_keys=True)),

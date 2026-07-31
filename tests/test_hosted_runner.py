@@ -37,8 +37,64 @@ def test_hosted_request_resolves_only_allowlisted_profile(tmp_path: Path, monkey
     resolved = resolver.from_request(Path("run-requests") / request.name)
     assert resolved["provider"] == "deepseek"
     assert resolved["profile"] == "smoke"
+    assert resolved["mode"] == "episode"
     assert resolved["config"] == "configs/providers/deepseek-api-smoke.yaml"
     assert resolved["request_id"] == "deepseek-smoke-001"
+
+
+def test_hosted_longitudinal_request_computes_checkpoint_paths(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    request_dir = tmp_path / "run-requests"
+    request_dir.mkdir()
+    request = request_dir / "life-chapter-001.yaml"
+    request.write_text(
+        "schema_version: 1\n"
+        "request_id: life-chapter-001\n"
+        "provider: gemini\n"
+        "profile: discovery\n"
+        "lineage_id: gemini-life-a\n"
+        "fresh_context: true\n"
+        "purpose: first probe-free chapter\n"
+        "approved: true\n",
+        encoding="utf-8",
+    )
+    resolved = resolver.from_request(Path("run-requests") / request.name)
+    assert resolved["mode"] == "discovery"
+    assert resolved["config"] == "configs/providers/gemini-discovery.yaml"
+    assert resolved["lineage_id"] == "gemini-life-a"
+    assert resolved["checkpoint_path"] == "lineages/gemini-life-a/latest.checkpoint.json"
+    assert resolved["fresh_context"] == "true"
+
+
+def test_hosted_evaluation_rejects_path_injection_and_bad_variants(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    request_dir = tmp_path / "run-requests"
+    request_dir.mkdir()
+    request = request_dir / "bad-evaluation.yaml"
+    request.write_text(
+        "schema_version: 1\n"
+        "request_id: bad-evaluation\n"
+        "provider: gemini\n"
+        "profile: evaluation\n"
+        "lineage_id: ../escape\n"
+        "approved: true\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="lineage_id"):
+        resolver.from_request(Path("run-requests") / request.name)
+
+    request.write_text(
+        "schema_version: 1\n"
+        "request_id: bad-evaluation\n"
+        "provider: gemini\n"
+        "profile: evaluation\n"
+        "lineage_id: safe-life\n"
+        "variants: [full, arbitrary]\n"
+        "approved: true\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="unsupported memory variant"):
+        resolver.from_request(Path("run-requests") / request.name)
 
 
 def test_hosted_request_rejects_unapproved_or_unknown_profiles(tmp_path: Path, monkeypatch):
