@@ -1,0 +1,6 @@
+schema_version: 1
+request_id: gemini-smoke-20260731-0203
+provider: gemini
+profile: smoke
+purpose: First observable autonomous six-tick Gemini causal-loop validation
+approved: true
