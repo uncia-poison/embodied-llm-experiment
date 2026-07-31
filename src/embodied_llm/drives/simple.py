@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import random
 import re
+from typing import Any
 
+from ..checkpoint import decode_random_state, encode_random_state
 from .base import clip_action
 
 
@@ -17,6 +19,12 @@ class NoneDrive:
     def remap(self, seed: int) -> None:
         return None
 
+    def export_state(self) -> dict[str, Any]:
+        return {}
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        return None
+
 
 class NumericDrive:
     def __init__(self, action_dim: int):
@@ -28,6 +36,12 @@ class NumericDrive:
         return clip_action(values, self.action_dim)
 
     def remap(self, seed: int) -> None:
+        return None
+
+    def export_state(self) -> dict[str, Any]:
+        return {}
+
+    def import_state(self, state: dict[str, Any]) -> None:
         return None
 
 
@@ -49,6 +63,12 @@ class TokenDrive:
     def remap(self, seed: int) -> None:
         return None
 
+    def export_state(self) -> dict[str, Any]:
+        return {}
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        return None
+
 
 class RandomDrive:
     def __init__(self, action_dim: int, seed: int):
@@ -60,6 +80,13 @@ class RandomDrive:
 
     def remap(self, seed: int) -> None:
         self.rng.seed(seed)
+
+    def export_state(self) -> dict[str, Any]:
+        return {"rng_state": encode_random_state(self.rng.getstate())}
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        if "rng_state" in state:
+            self.rng.setstate(decode_random_state(state["rng_state"]))
 
 
 class PatternDrive:
@@ -118,3 +145,10 @@ class PatternDrive:
     def remap(self, seed: int) -> None:
         # Pattern mode is an interpretable positive control and does not remap.
         return None
+
+    def export_state(self) -> dict[str, Any]:
+        return {"previous": list(self.previous)}
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        previous = [float(value) for value in state.get("previous", [])]
+        self.previous = clip_action(previous, self.action_dim)
