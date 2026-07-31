@@ -5,7 +5,7 @@ import json
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from .checkpoint import (
     MemoryVariant,
@@ -15,6 +15,9 @@ from .checkpoint import (
 )
 from .config import ExperimentConfig
 from .experiment import ExperimentRunner
+from .models import LanguageModel
+
+ModelFactory = Callable[[ExperimentConfig], LanguageModel]
 
 DEFAULT_VARIANTS: tuple[MemoryVariant, ...] = (
     "full",
@@ -69,6 +72,7 @@ def run_discovery(
     checkpoint_in: str | Path | None = None,
     checkpoint_every: int = 1,
     fresh_context: bool = False,
+    model_factory: ModelFactory | None = None,
 ) -> dict[str, Any]:
     config = ExperimentConfig.from_yaml(config_path)
     if config.paradigm != "single_body":
@@ -79,8 +83,10 @@ def run_discovery(
         )
 
     checkpoint = read_checkpoint(checkpoint_in) if checkpoint_in is not None else None
+    model = model_factory(config) if model_factory is not None else None
     runner = ExperimentRunner(
         config,
+        model=model,
         checkpoint=checkpoint,
         checkpoint_out=checkpoint_out,
         checkpoint_every=checkpoint_every,
@@ -124,6 +130,7 @@ def run_evaluation(
     unrelated_checkpoint_path: str | Path | None = None,
     shuffle_seed: int = 1701,
     continue_on_error: bool = True,
+    model_factory: ModelFactory | None = None,
 ) -> dict[str, Any]:
     config = ExperimentConfig.from_yaml(config_path)
     if config.paradigm != "single_body":
@@ -184,8 +191,10 @@ def run_evaluation(
         variant_config.output_dir = str(root / "runs")
         started = _utc_now()
         try:
+            model = model_factory(variant_config) if model_factory is not None else None
             runner = ExperimentRunner(
                 variant_config,
+                model=model,
                 checkpoint=branch,
                 phase=f"evaluation:{variant}",
                 fresh_context=True,
