@@ -1,0 +1,55 @@
+name: deepseek-api-smoke
+seed: 8101
+ticks: 6
+output_dir: provider-runs
+
+body:
+  action_dim: 8
+  dt: 0.2
+world:
+  autonomous: true
+  event_probability: 0.05
+sensorium:
+  mode: permuted
+  channel_seed: 7719
+  decimals: 3
+  include_delta: true
+drive:
+  mode: semantic
+  action_dim: 8
+  inertia: 0.18
+  projection_seed: 9137
+  embedding_provider: hash_ngram
+  embedding_dim: 384
+memory:
+  mode: full
+model:
+  provider: openai_compatible
+  model: deepseek-v4-flash
+  endpoint: https://api.deepseek.com/chat/completions
+  api_key_env: DEEPSEEK_API_KEY
+  api_key_required: true
+  json_mode: true
+  temperature: 0.7
+  max_tokens: 350
+  timeout_seconds: 180
+  max_retries: 3
+probes:
+  enabled: true
+  warmup_ticks: 2
+  agency_every: 2
+  prediction_every: 2
+  max_probe_tokens: 180
+coupling:
+  - start: 0
+    end: 2
+    mode: coupled
+  - start: 2
+    end: 4
+    mode: disconnected
+  - start: 4
+    end: 6
+    mode: coupled
+    remap_seed: 4411
+prompt:
+  profile: neutral
