@@ -42,6 +42,7 @@ jobs:
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       EMBODIED_LLM_USAGE_LOG: hosted-output/model-usage.jsonl
+      HOSTED_GEMINI_MIN_INTERVAL_SECONDS: "15"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -120,12 +121,20 @@ jobs:
           set +e
           mkdir -p hosted-output
           config="${{ steps.request.outputs.config }}"
+          provider="${{ steps.request.outputs.provider }}"
+          interval="0"
+          if [[ "$provider" == "gemini" ]]; then
+            interval="${HOSTED_GEMINI_MIN_INTERVAL_SECONDS}"
+          fi
           embodied-llm doctor --config "$config" \
             > >(tee hosted-output/preflight.json) \
             2> >(tee hosted-output/preflight.stderr >&2)
           status=$?
           if [[ $status -eq 0 ]]; then
-            embodied-llm run --config "$config" \
+            python scripts/run_hosted_experiment.py \
+              --config "$config" \
+              --minimum-request-interval-seconds "$interval" \
+              --policy-output hosted-output/transport-policy.json \
               > >(tee hosted-output/console-summary.json) \
               2> >(tee hosted-output/experiment.stderr >&2)
             status=$?
