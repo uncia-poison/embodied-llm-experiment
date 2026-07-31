@@ -19,7 +19,7 @@ on:
           - smoke
           - episode
       acknowledgement:
-        description: Type RUN to authorize a paid API call
+        description: Type RUN to authorize an external API call
         required: true
         type: string
   push:
@@ -28,7 +28,7 @@ on:
       - "run-requests/*.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: hosted-llm-${{ github.run_id }}
@@ -158,6 +158,68 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           compression-level: 6
+
+      - name: Publish private run receipt
+        if: always() && steps.request.outputs.request_id != ''
+        env:
+          REQUEST_ID: ${{ steps.request.outputs.request_id }}
+          PROVIDER: ${{ steps.request.outputs.provider }}
+          PROFILE: ${{ steps.request.outputs.profile }}
+          PURPOSE: ${{ steps.request.outputs.purpose }}
+          CONFIG_PATH: ${{ steps.request.outputs.config }}
+          ARTIFACT_NAME: ${{ steps.request.outputs.artifact_name }}-${{ github.run_id }}
+          RUN_EXIT_CODE: ${{ steps.experiment.outputs.exit_code }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipt_dir="run-results/${REQUEST_ID}"
+          mkdir -p "$receipt_dir"
+          if [[ -f hosted-output/report.md ]]; then
+            cp hosted-output/report.md "$receipt_dir/report.md"
+          fi
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          exit_code = os.environ.get("RUN_EXIT_CODE", "")
+          status = "success" if exit_code == "0" else "failed"
+          payload = {
+              "schema_version": 1,
+              "request_id": os.environ["REQUEST_ID"],
+              "provider": os.environ.get("PROVIDER", ""),
+              "profile": os.environ.get("PROFILE", ""),
+              "purpose": os.environ.get("PURPOSE", ""),
+              "config": os.environ.get("CONFIG_PATH", ""),
+              "status": status,
+              "exit_code": int(exit_code) if exit_code.isdigit() else None,
+              "workflow_run_id": int(os.environ["RUN_ID"]),
+              "workflow_attempt": int(os.environ["RUN_ATTEMPT"]),
+              "commit": os.environ["RUN_SHA"],
+              "artifact_name": os.environ.get("ARTIFACT_NAME", ""),
+              "actions_url": f"{os.environ['SERVER_URL']}/{os.environ['REPOSITORY']}/actions/runs/{os.environ['RUN_ID']}",
+              "recorded_at": datetime.now(timezone.utc).isoformat(),
+          }
+          root = Path("run-results") / os.environ["REQUEST_ID"]
+          (root / "receipt.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          git config user.name "embodied-llm-runner"
+          git config user.email "actions@users.noreply.github.com"
+          git add "$receipt_dir"
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Record hosted run ${REQUEST_ID} [skip ci]"
+          git push origin HEAD:main
 
       - name: Propagate experiment status
         if: always()
