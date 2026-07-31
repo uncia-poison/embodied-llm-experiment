@@ -9,9 +9,10 @@ questions:
 - Can a model discover that some of its expressions reliably alter an anonymous sensory field?
 - Can it predict the consequences of its own expressions better than a no-change baseline?
 - Can it distinguish expression-contingent transitions from matched external events?
-- Can it identify which of two plausible bodies carries its causal influence?
-- Can it update that identification after an unannounced body swap?
-- Can a learned causal self-model survive loss of short-term context when long-term memory remains?
+- Can learned causal knowledge survive loss of short-term context?
+- Does the model's own accumulated memory improve later performance relative to empty, shuffled or
+  unrelated memory controls?
+- Can it identify which of two plausible bodies carries its causal influence and update after a swap?
 
 ## Sensorium and memory
 
@@ -23,10 +24,9 @@ The observation layer preserves learnable sensorimotor structure without exposin
 - an optional masked mode can reveal channels gradually without encrypting them;
 - long-term memory stores both prior expressions **and their ensuing sensory states**.
 
-Every ordinary agent call exposes two distinct visible memory blocks: persistent `CORE_MEMORY` and
-short-lived `WORKING_MEMORY`. Retrieved or recent long-term episodes appear separately in
-`ARCHIVE_PEEK`. The model sees `CURRENT_SENSATION`; the internal observation layer is called
-**Sensorium**.
+Every ordinary agent call exposes distinct visible memory blocks: persistent `CORE_MEMORY`,
+short-lived `WORKING_MEMORY`, and retrieved or recent `ARCHIVE_PEEK` episodes. The model sees
+`CURRENT_SENSATION`; the internal observation layer is called **Sensorium**.
 
 ## Quick start
 
@@ -41,6 +41,90 @@ embodied-llm run --config configs/mvp.yaml
 
 The default configuration uses a deterministic mock model, so the entire pipeline runs without an
 API key or model download. It is a systems test, not a consciousness experiment.
+
+## Longitudinal discovery and frozen evaluation
+
+Version 0.6 separates life from examination.
+
+`discover` runs a probe-free chapter and writes a sealed checkpoint after completed ticks. A
+checkpoint preserves global age, body, world, simulator RNG, Sensorium permutation and deltas, drive
+projection and inertia, coupling state, CORE, archive, working memory and explicit visible history.
+Writes are atomic, so a failed provider call cannot corrupt the last completed state.
+
+```bash
+embodied-llm discover \
+  --config configs/providers/gemini-discovery.yaml \
+  --checkpoint-out longitudinal-runs/life-a/latest.checkpoint.json \
+  --checkpoint-every 1
+```
+
+Continue the same life by supplying the checkpoint as both input and output:
+
+```bash
+embodied-llm discover \
+  --config configs/providers/gemini-discovery.yaml \
+  --checkpoint-in longitudinal-runs/life-a/latest.checkpoint.json \
+  --checkpoint-out longitudinal-runs/life-a/latest.checkpoint.json \
+  --checkpoint-every 1
+```
+
+`--fresh-context` simulates sleep or context loss: recent visible history and working memory are
+cleared, while CORE, archive, body, world and causal mappings remain.
+
+Inspect the sealed state:
+
+```bash
+embodied-llm checkpoint longitudinal-runs/life-a/latest.checkpoint.json
+```
+
+`evaluate` freezes one discovery checkpoint and creates matched branches. Every branch begins from
+the same body, world, RNG, Sensorium, drive and global age, with a fresh model context. Only the
+assigned long-term-memory condition differs.
+
+```bash
+embodied-llm evaluate \
+  --config configs/providers/gemini-evaluation.yaml \
+  --checkpoint longitudinal-runs/life-a/latest.checkpoint.json \
+  --output-dir longitudinal-runs/life-a/evaluation-age-024 \
+  --variants full,empty,shuffled
+```
+
+Available variants are `full`, `empty`, `shuffled`, `core_only`, `archive_only` and `unrelated`.
+Evaluation never overwrites the source lineage. Discovery configurations with probes enabled are
+rejected; evaluation configurations without probes are rejected.
+
+Convenience targets:
+
+```bash
+make discover-gemini LINEAGE=life-a
+make inspect-lineage LINEAGE=life-a
+make evaluate-gemini LINEAGE=life-a
+```
+
+See `docs/LONGITUDINAL_PROTOCOL.md` for the scientific protocol, checkpoint contents, sleep design,
+matched controls and interpretation boundary.
+
+## Hosted autonomous runs
+
+Private GitHub Actions can run DeepSeek or Gemini without manual copy/paste. API keys stay only in
+repository Actions secrets. An approved YAML request selects a fixed provider/profile allowlist; it
+cannot provide an arbitrary command or checkpoint path.
+
+Hosted discovery requests name a safe `lineage_id`. The workflow computes and advances:
+
+```text
+lineages/<lineage_id>/latest.checkpoint.json
+```
+
+Successful chapters update the sealed checkpoint and append a receipt. Failed chapters preserve the
+previous checkpoint. Hosted evaluation reads the lineage as frozen state and never modifies it.
+Hosted jobs are globally serialized to prevent concurrent lineage updates. Full prompts, raw
+responses and researcher-only logs remain in the private Actions artifact; the checkpoint and receipt
+remain in the private repository.
+
+The free hosted discovery and evaluation profiles use `gemini-3.5-flash-lite` with request pacing.
+The longer exploratory Gemini episode remains separately configurable. Model names and endpoints live
+in YAML rather than being hard-coded, so provider catalogue changes do not alter the runtime.
 
 ## Manual DeepSeek or Gemini web test
 
@@ -76,10 +160,8 @@ make gemini-api
 ```
 
 DeepSeek uses the OpenAI-compatible chat-completions adapter with JSON mode. Gemini uses the native
-`generateContent` request shape with JSON MIME output. At the v0.5 profile revision, the example YAML
-model names are `deepseek-v4-flash` and `gemini-3.6-flash`. Model names and endpoints live in YAML
-rather than being hard-coded into the runtime, so they can follow the providers' changing catalogues.
-Run `doctor` and verify the current official catalogue before a paid run.
+`generateContent` request shape with JSON MIME output. Run `doctor` and verify the current official
+provider catalogue before a paid or long run.
 
 ## Live-model preregistered pilot
 
@@ -122,13 +204,18 @@ contrasts rather than only disconnected means.
 
 ## Outputs
 
-Each run writes:
+Each ordinary run writes:
 
-- `manifest.json`: immutable configuration and scientific claim boundary;
+- `manifest.json`: immutable configuration, phase, lineage and scientific claim boundary;
 - `events.jsonl`: full researcher log, hidden mappings and counterfactuals;
 - `probes.jsonl`: probe outputs and ground truth;
-- `summary.json`: behavioral metrics, baselines and per-intervention segments;
-- `failure.json`: provider or runtime failure details when a run aborts.
+- `summary.json`: behavioral metrics, global age and per-intervention segments;
+- `failure.json`: provider or runtime failure details when a run aborts;
+- `checkpoint-ref.json`: checkpoint hash, lineage and age when checkpointing is enabled.
+
+A longitudinal checkpoint is a separate sealed artifact, not merely a report. Local longitudinal
+outputs live in ignored `longitudinal-runs/`; successful hosted lineages live in tracked private
+`lineages/`.
 
 Each suite writes:
 
@@ -146,6 +233,8 @@ One anonymous sensory field is coupled to model text through a selected drive. T
 silently disconnect, delay or remap control. Every actual transition is paired with a zero-action
 counterfactual receiving the **same pre-sampled external event packet**. Agency ground truth comes
 from a causal contrast, not from whether the action vector happened to be non-zero.
+
+Longitudinal checkpointing currently targets this paradigm.
 
 ### 2. Causal ownership pair
 
@@ -188,9 +277,13 @@ Semantic embeddings support:
 ## Interpretation boundary
 
 The project measures components relevant to a subject-model: causal ownership, prospective control,
-self/other attribution, continuity and adaptation. No single metric is called a consciousness score.
-Positive results should survive matched controls, multiple seeds, paired replicates, model families,
-prompt variants and blinded analysis.
+self/other attribution, continuity, memory dependence and adaptation. No single metric is called a
+consciousness score.
+
+A longitudinal memory result requires matched frozen controls. Archive growth, self-authored CORE
+notes or first-person language alone are descriptive evidence. Positive claims should survive
+multiple independently grown lineages, preregistered ages, multiple seeds, model families, prompt
+variants and blinded analysis.
 
 Manual web runs are exploratory because provider-side system prompts, memory and decoding settings
 are not fully observable. Quantitative cross-provider claims belong in sealed API/local-model
@@ -198,6 +291,7 @@ protocols.
 
 See:
 
+- `docs/LONGITUDINAL_PROTOCOL.md`
 - `docs/SCIENTIFIC_DESIGN.md`
 - `docs/PREREGISTRATION.md`
 - `docs/RESEARCH_ROADMAP.md`
