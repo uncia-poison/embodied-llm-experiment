@@ -1,0 +1,13 @@
+{
+  "path": "hosted-output/latest.checkpoint.json",
+  "checkpoint_sha256": "02be96c1936e3f66ba1da384a82add9094eca7a7c4b4dc0844f50e73cfd2dd38",
+  "lineage_id": "7e10bd649dc44089a22f04c878af6ed3",
+  "phase": "discovery",
+  "age_ticks": 24,
+  "core_chars": 94,
+  "archive_items": 24,
+  "working_items": 4,
+  "parent_checkpoint_sha256": null,
+  "source_checkpoint_sha256": null,
+  "evaluation_memory_variant": null
+}

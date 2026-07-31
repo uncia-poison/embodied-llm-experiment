@@ -1,0 +1,26 @@
+{
+  "actions_url": "https://github.com/uncia-poison/embodied-llm-experiment/actions/runs/30602508468",
+  "artifact_name": "embodied-gemini-discovery-30602508468",
+  "checkpoint_path": "lineages/gemini-life-a/latest.checkpoint.json",
+  "commit": "14f703b3a387aa1ef62082cddd2b790f0cd25945",
+  "config": "configs/providers/gemini-discovery.yaml",
+  "exit_code": 0,
+  "lineage_id": "gemini-life-a",
+  "mode": "discovery",
+  "profile": "discovery",
+  "provider": "gemini",
+  "purpose": "First probe-free 24-tick longitudinal discovery chapter",
+  "recorded_at": "2026-07-31T03:54:37.179761+00:00",
+  "request_id": "gemini-life-a-chapter-001",
+  "schema_version": 2,
+  "status": "success",
+  "variants": [
+    "full",
+    "empty",
+    "shuffled",
+    "core_only",
+    "archive_only"
+  ],
+  "workflow_attempt": 1,
+  "workflow_run_id": 30602508468
+}
