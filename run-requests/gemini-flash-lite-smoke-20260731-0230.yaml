@@ -1,0 +1,6 @@
+schema_version: 1
+request_id: gemini-flash-lite-smoke-20260731-0230
+provider: gemini
+profile: smoke
+purpose: Validate the six-tick causal loop on the free high-volume Gemini Flash-Lite model with paced requests
+approved: true

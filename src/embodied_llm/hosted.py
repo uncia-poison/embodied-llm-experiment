@@ -5,10 +5,35 @@ import time
 from pathlib import Path
 from typing import Callable
 
+import httpx
+
 from .config import ExperimentConfig
 from .experiment import ExperimentRunner
 from .models import LanguageModel, build_model
 from .ownership import OwnershipPairRunner
+
+
+def _http_error_detail(error: BaseException) -> str | None:
+    """Recover a bounded provider response from a wrapped HTTP exception."""
+
+    current: BaseException | None = error
+    visited: set[int] = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        if isinstance(current, httpx.HTTPStatusError):
+            response = current.response
+            retry_after = response.headers.get("retry-after")
+            body = response.text.strip().replace("\x00", "")
+            if len(body) > 2000:
+                body = body[:2000] + "…"
+            parts = [f"status={response.status_code}"]
+            if retry_after:
+                parts.append(f"retry_after={retry_after}")
+            if body:
+                parts.append(f"response={body}")
+            return "; ".join(parts)
+        current = current.__cause__ or current.__context__
+    return None
 
 
 class PacedLanguageModel:
@@ -41,11 +66,17 @@ class PacedLanguageModel:
             if remaining > 0:
                 self.sleeper(remaining)
         self.last_request_started_at = self.clock()
-        return self.delegate.generate(
-            messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        try:
+            return self.delegate.generate(
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        except Exception as exc:
+            detail = _http_error_detail(exc)
+            if detail is not None:
+                raise RuntimeError(f"hosted model request failed: {detail}") from exc
+            raise
 
     def reset_context(self) -> None:
         self.delegate.reset_context()

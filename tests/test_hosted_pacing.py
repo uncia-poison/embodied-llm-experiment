@@ -1,5 +1,7 @@
 import json
-from pathlib import Path
+
+import httpx
+import pytest
 
 from embodied_llm.hosted import PacedLanguageModel
 
@@ -15,6 +17,32 @@ class RecordingModel:
 
     def reset_context(self) -> None:
         self.resets += 1
+
+
+class QuotaFailureModel:
+    def generate(self, messages, *, temperature=None, max_tokens=None) -> str:
+        request = httpx.Request("POST", "https://example.test/generateContent")
+        response = httpx.Response(
+            429,
+            request=request,
+            headers={"Retry-After": "60"},
+            json={
+                "error": {
+                    "code": 429,
+                    "status": "RESOURCE_EXHAUSTED",
+                    "message": "quota exceeded for test model",
+                }
+            },
+        )
+        status_error = httpx.HTTPStatusError(
+            "too many requests",
+            request=request,
+            response=response,
+        )
+        raise RuntimeError("model endpoint failed after retries") from status_error
+
+    def reset_context(self) -> None:
+        return None
 
 
 def test_paced_model_enforces_minimum_interval():
@@ -57,9 +85,17 @@ def test_paced_model_forwards_context_reset():
 
 def test_paced_model_rejects_negative_interval():
     delegate = RecordingModel()
-    try:
+    with pytest.raises(ValueError, match="cannot be negative"):
         PacedLanguageModel(delegate, -1.0)
-    except ValueError as exc:
-        assert "cannot be negative" in str(exc)
-    else:
-        raise AssertionError("negative pacing interval should fail")
+
+
+def test_paced_model_preserves_wrapped_http_quota_detail():
+    model = PacedLanguageModel(QuotaFailureModel(), 0.0)
+    with pytest.raises(RuntimeError) as captured:
+        model.generate([{"role": "user", "content": "test"}])
+
+    message = str(captured.value)
+    assert "status=429" in message
+    assert "retry_after=60" in message
+    assert "RESOURCE_EXHAUSTED" in message
+    assert "quota exceeded for test model" in message
