@@ -1,0 +1,24 @@
+{
+  "actions_url": "https://github.com/uncia-poison/embodied-llm-experiment/actions/runs/30605053378",
+  "artifact_name": "embodied-gemini-evaluation-30605053378",
+  "checkpoint_path": "lineages/gemini-life-a/latest.checkpoint.json",
+  "commit": "5dcbb7adeff6d5f05534436dd307c98bf7973617",
+  "config": "configs/providers/gemini-evaluation.yaml",
+  "exit_code": 0,
+  "lineage_id": "gemini-life-a",
+  "mode": "evaluation",
+  "profile": "evaluation",
+  "provider": "gemini",
+  "purpose": "Frozen-memory age-96 evaluation replicate 3 under issue 9 amendment",
+  "recorded_at": "2026-07-31T05:01:49.145163+00:00",
+  "request_id": "gemini-life-a-eval-age-096-r03",
+  "schema_version": 2,
+  "status": "success",
+  "variants": [
+    "full",
+    "empty",
+    "shuffled"
+  ],
+  "workflow_attempt": 1,
+  "workflow_run_id": 30605053378
+}
