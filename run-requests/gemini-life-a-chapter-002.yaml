@@ -1,0 +1,8 @@
+schema_version: 1
+request_id: gemini-life-a-chapter-002
+provider: gemini
+profile: discovery
+lineage_id: gemini-life-a
+fresh_context: false
+purpose: Continue the same longitudinal life from the age-24 sealed checkpoint to age 48
+approved: true
