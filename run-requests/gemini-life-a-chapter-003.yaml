@@ -1,0 +1,8 @@
+schema_version: 1
+request_id: gemini-life-a-chapter-003
+provider: gemini
+profile: discovery
+lineage_id: gemini-life-a
+fresh_context: false
+purpose: Continue the sealed longitudinal life from age 48 to age 72 before the prospective age-96 evaluation
+approved: true
