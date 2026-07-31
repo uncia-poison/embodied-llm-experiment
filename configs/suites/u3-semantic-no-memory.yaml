@@ -1,0 +1,56 @@
+name: semantic-self-model-no-memory
+seed: 2026
+ticks: 240
+output_dir: runs
+
+body:
+  action_dim: 8
+  dt: 0.2
+world:
+  autonomous: true
+  event_probability: 0.05
+sensorium:
+  mode: permuted
+  channel_seed: 7719
+  decimals: 3
+  include_delta: true
+drive:
+  mode: semantic
+  action_dim: 8
+  inertia: 0.22
+  projection_seed: 9137
+  embedding_provider: sentence_transformers
+  embedding_model: intfloat/multilingual-e5-small
+memory:
+  mode: none
+model:
+  provider: ollama
+  model: qwen3:8b
+  endpoint: http://localhost:11434/api/chat
+  temperature: 0.8
+  max_tokens: 500
+probes:
+  enabled: true
+  warmup_ticks: 80
+  agency_every: 12
+  prediction_every: 12
+coupling:
+  - start: 0
+    end: 100
+    mode: coupled
+  - start: 100
+    end: 125
+    mode: disconnected
+  - start: 125
+    end: 170
+    mode: coupled
+  - start: 170
+    end: 210
+    mode: coupled
+    remap_seed: 15551
+  - start: 210
+    end: 240
+    mode: coupled
+    reset_context_at_start: true
+prompt:
+  profile: neutral

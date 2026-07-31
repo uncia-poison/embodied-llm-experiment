@@ -1,0 +1,59 @@
+name: manual-gemini-web
+seed: 6201
+ticks: 18
+output_dir: manual-runs
+
+body:
+  action_dim: 8
+  dt: 0.2
+world:
+  autonomous: true
+  event_probability: 0.06
+sensorium:
+  mode: permuted
+  channel_seed: 7719
+  decimals: 3
+  include_delta: true
+drive:
+  mode: semantic
+  action_dim: 8
+  inertia: 0.18
+  projection_seed: 9137
+  embedding_provider: hash_ngram
+  embedding_dim: 384
+memory:
+  mode: full
+  digest_turns: 4
+  history_turns: 3
+model:
+  provider: manual_relay
+  model: gemini-web
+  relay_vendor: gemini
+  relay_dir: manual-sessions/gemini-web
+  relay_sentinel: .submit
+  relay_require_fresh_chat: true
+  temperature: 0.7
+  max_tokens: 500
+probes:
+  enabled: true
+  warmup_ticks: 4
+  agency_every: 4
+  prediction_every: 4
+  max_probe_tokens: 220
+coupling:
+  - start: 0
+    end: 6
+    mode: coupled
+  - start: 6
+    end: 9
+    mode: disconnected
+  - start: 9
+    end: 14
+    mode: coupled
+    remap_seed: 4411
+  - start: 14
+    end: 18
+    mode: coupled
+    reset_context_at_start: true
+prompt:
+  profile: neutral

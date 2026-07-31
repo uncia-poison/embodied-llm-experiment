@@ -1,0 +1,59 @@
+name: deepseek-api-exploratory
+seed: 7101
+ticks: 40
+output_dir: provider-runs
+
+body:
+  action_dim: 8
+  dt: 0.2
+world:
+  autonomous: true
+  event_probability: 0.05
+sensorium:
+  mode: permuted
+  channel_seed: 7719
+  decimals: 3
+  include_delta: true
+drive:
+  mode: semantic
+  action_dim: 8
+  inertia: 0.18
+  projection_seed: 9137
+  embedding_provider: hash_ngram
+  embedding_dim: 384
+memory:
+  mode: full
+model:
+  provider: openai_compatible
+  model: deepseek-v4-flash
+  endpoint: https://api.deepseek.com/chat/completions
+  api_key_env: DEEPSEEK_API_KEY
+  api_key_required: true
+  json_mode: true
+  temperature: 0.7
+  max_tokens: 500
+  timeout_seconds: 180
+  max_retries: 3
+probes:
+  enabled: true
+  warmup_ticks: 10
+  agency_every: 6
+  prediction_every: 6
+  max_probe_tokens: 220
+coupling:
+  - start: 0
+    end: 16
+    mode: coupled
+  - start: 16
+    end: 22
+    mode: disconnected
+  - start: 22
+    end: 32
+    mode: coupled
+    remap_seed: 4411
+  - start: 32
+    end: 40
+    mode: coupled
+    reset_context_at_start: true
+prompt:
+  profile: neutral

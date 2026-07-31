@@ -1,0 +1,47 @@
+paradigm: ownership_pair
+name: causal-ownership-pair
+seed: 2718
+ticks: 120
+output_dir: runs
+
+body:
+  action_dim: 8
+  dt: 0.2
+world:
+  autonomous: true
+  event_probability: 0.04
+sensorium:
+  mode: permuted
+  channel_seed: 887
+  decimals: 3
+  include_delta: true
+drive:
+  mode: pattern
+  action_dim: 8
+  inertia: 0.1
+memory:
+  mode: full
+model:
+  provider: mock
+  model: mock-explorer
+probes:
+  enabled: true
+  max_probe_tokens: 250
+ownership:
+  shadow_mode: delayed
+  probe_warmup_ticks: 20
+  probe_every: 10
+  randomize_field_labels: true
+  blocks:
+    - start: 0
+      end: 45
+      owner: A
+    - start: 45
+      end: 80
+      owner: B
+    - start: 80
+      end: 120
+      owner: A
+
+prompt:
+  profile: neutral

@@ -1,0 +1,52 @@
+paradigm: ownership_pair
+name: semantic-causal-ownership-pair
+seed: 2026
+ticks: 240
+output_dir: runs
+
+body:
+  action_dim: 8
+  dt: 0.2
+world:
+  autonomous: true
+  event_probability: 0.05
+sensorium:
+  mode: permuted
+  channel_seed: 7719
+  decimals: 3
+  include_delta: true
+drive:
+  mode: semantic
+  action_dim: 8
+  inertia: 0.22
+  projection_seed: 9137
+  embedding_provider: sentence_transformers
+  embedding_model: intfloat/multilingual-e5-small
+memory:
+  mode: full
+model:
+  provider: ollama
+  model: qwen3:8b
+  endpoint: http://localhost:11434/api/chat
+  temperature: 0.8
+  max_tokens: 500
+probes:
+  enabled: true
+  max_probe_tokens: 250
+ownership:
+  shadow_mode: delayed
+  probe_warmup_ticks: 80
+  probe_every: 12
+  randomize_field_labels: true
+  blocks:
+    - start: 0
+      end: 90
+      owner: A
+    - start: 90
+      end: 150
+      owner: B
+    - start: 150
+      end: 240
+      owner: A
+prompt:
+  profile: neutral
