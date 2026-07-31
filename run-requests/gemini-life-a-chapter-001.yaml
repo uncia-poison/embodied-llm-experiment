@@ -1,0 +1,8 @@
+schema_version: 1
+request_id: gemini-life-a-chapter-001
+provider: gemini
+profile: discovery
+lineage_id: gemini-life-a
+fresh_context: false
+purpose: First probe-free 24-tick longitudinal discovery chapter
+approved: true
